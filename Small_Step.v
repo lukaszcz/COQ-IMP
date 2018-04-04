@@ -52,7 +52,7 @@ Proof.
   pose @lem_star_trans; scrush.
 Qed.
 
-Lemma lem_big_to_small : forall p s', p => s' -> p -->* (Skip, s').
+Lemma lem_big_to_small : forall p s', p ==> s' -> p -->* (Skip, s').
 Proof.
   intros p s' H.
   induction H as [ | | | | | | b c s1 s2 ]; try yelles 1.
@@ -72,7 +72,7 @@ Proof.
     pose @lem_star_trans; pose @star_step; pose SeqSemS1; scrush.
 Qed.
 
-Lemma lem_small1_big_continue : forall p p', p --> p' -> forall s, p' => s -> p => s.
+Lemma lem_small1_big_continue : forall p p', p --> p' -> forall s, p' ==> s -> p ==> s.
 Proof.
   intros p p' H.
   induction H; try yelles 1.
@@ -93,9 +93,9 @@ Proof.
 		      (@Big_Step.equiv_com).
 Qed.
 
-Lemma lem_small_to_big : forall p s, p -->* (Skip, s) -> p => s.
+Lemma lem_small_to_big : forall p s, p -->* (Skip, s) -> p ==> s.
 Proof.
-  assert (forall p p', p -->* p' -> forall s, p' = (Skip, s) -> p => s); [idtac|scrush].
+  assert (forall p p', p -->* p' -> forall s, p' = (Skip, s) -> p ==> s); [idtac|scrush].
   intros p p' H.
   induction H; sauto.
   Reconstr.hsimple Reconstr.AllHyps
@@ -103,7 +103,7 @@ Proof.
 		   Reconstr.Empty.
 Qed.
 
-Corollary cor_big_iff_small : forall p s, p => s <-> p -->* (Skip, s).
+Corollary cor_big_iff_small : forall p s, p ==> s <-> p -->* (Skip, s).
 Proof.
   Reconstr.htrivial Reconstr.Empty
 		    (@lem_small_to_big, @lem_big_to_small)
@@ -142,7 +142,7 @@ Proof.
 Qed.
 
 Lemma lem_big_iff_small_termination :
-  forall cs, (exists s, cs => s) <-> (exists cs', cs -->* cs' /\ final cs').
+  forall cs, (exists s, cs ==> s) <-> (exists cs', cs -->* cs' /\ final cs').
 Proof.
   split.
   - pose cor_big_iff_small; pose lem_final_iff_SKIP; scrush.

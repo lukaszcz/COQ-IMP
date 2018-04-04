@@ -1,5 +1,5 @@
 
-all: imports.vo AExp.vo BExp.vo ASM.vo Star.vo Com.vo Big_Step.vo Small_Step.vo
+all: imports.vo AExp.vo BExp.vo ASM.vo Star.vo Com.vo Big_Step.vo Small_Step.vo Compiler.vo
 
 imports.vo : imports.v
 	coqc imports.v
@@ -24,6 +24,9 @@ Big_Step.vo : Big_Step.v Com.vo
 
 Small_Step.vo : Small_Step.v Big_Step.vo Star.vo Com.vo
 	coqc Small_Step.v
+
+Compiler.vo : Compiler.v Big_Step.vo Star.vo Com.vo
+	coqc Compiler.v
 
 clean:
 	-rm -f *.vo *.glob .*.aux
