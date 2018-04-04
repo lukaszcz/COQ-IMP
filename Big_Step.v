@@ -45,8 +45,8 @@ Lemma lem_while_unfold : forall b c, While b c ~~ If b (Seq c (While b c)) Skip.
 Proof.
   unfold equiv_com.
   intros; split.
-  intro H; inversion H; pose SkipSem; pose SeqSem; pose IfFalse; pose IfTrue; eauto.
-  intro H; inversion H; pose WhileTrue; pose WhileFalse; sauto; eauto.
+  - intro H; inversion H; pose SkipSem; pose SeqSem; pose IfFalse; pose IfTrue; eauto.
+  - intro H; inversion H; pose WhileTrue; pose WhileFalse; sauto; eauto.
 Qed.
 
 Lemma lem_triv_if : forall b c, If b c c ~~ c.
@@ -76,12 +76,12 @@ Proof.
               p = (While b c, s) -> c ~~ c' -> (While b c', s) => s'); [idtac | scrush].
   intros p s' H.
   induction H; sauto.
-  Reconstr.hobvious Reconstr.AllHyps
-		    (@WhileFalse)
-		    Reconstr.Empty.
-  Reconstr.hsimple Reconstr.AllHyps
-		   (@WhileTrue)
-		   (@equiv_com).
+  - Reconstr.hobvious Reconstr.AllHyps
+		      (@WhileFalse)
+		      Reconstr.Empty.
+  - Reconstr.hsimple Reconstr.AllHyps
+		     (@WhileTrue)
+		     (@equiv_com).
 Qed.
 
 Lemma lem_while_cong : forall b c c', c ~~ c' -> While b c ~~ While b c'.
@@ -112,6 +112,6 @@ Proof.
   intros c s s1 s2 H.
   revert s2.
   induction H; try yelles 1.
-  scrush.
-  intros s0 H2; inversion H2; scrush.
+  - scrush.
+  - intros s0 H2; inversion H2; scrush.
 Qed.
