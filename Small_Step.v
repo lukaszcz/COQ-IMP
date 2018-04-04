@@ -109,3 +109,43 @@ Proof.
 		    (@lem_small_to_big, @lem_big_to_small)
 		    Reconstr.Empty.
 Qed.
+
+(* Final configurations and infinite reductions *)
+
+Definition final (cs : com * state) := ~(exists cs', cs --> cs').
+
+Lemma lem_nonfinal_dec_0 :
+  forall c s, (exists cs', (c, s) --> cs') \/ (~(exists cs', (c, s) --> cs') /\ c = Skip).
+Proof.
+  induction c; sauto.
+  - pose @SeqSemS2; scrush.
+  - destruct (bval s b) eqn:?; pose @IfTrueS; pose @IfFalseS; scrush.
+Qed.
+
+Lemma lem_nonfinal_dec : forall cs, (exists cs', cs --> cs') \/ ~(exists cs', cs --> cs').
+Proof.
+  pose lem_nonfinal_dec_0; scrush.
+Qed.
+
+Lemma lem_finalD : forall c s, final (c, s) -> c = Skip.
+Proof.
+  Reconstr.hblast Reconstr.Empty
+		  (@lem_nonfinal_dec_0)
+		  (@final).
+Qed.
+
+Lemma lem_final_iff_SKIP : forall c s, final (c, s) <-> c = Skip.
+Proof.
+  split.
+  - pose lem_finalD; scrush.
+  - unfold final; scrush.
+Qed.
+
+Lemma lem_big_iff_small_termination :
+  forall cs, (exists s, cs => s) <-> (exists cs', cs -->* cs' /\ final cs').
+Proof.
+  split.
+  - pose cor_big_iff_small; pose lem_final_iff_SKIP; scrush.
+  - intro H; destruct H as [cs']; destruct cs'.
+    pose cor_big_iff_small; pose lem_final_iff_SKIP; scrush.
+Qed.
