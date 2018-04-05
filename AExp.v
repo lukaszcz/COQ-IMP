@@ -47,7 +47,7 @@ Fixpoint plus (e1 e2 : aexpr) :=
 
 Lemma lem_aval_plus : forall s e1 e2, aval s (plus e1 e2) = aval s e1 + aval s e2.
 Proof.
-  induction e1; sauto.
+  Reconstr.scrush (** hammer *).
 Qed.
 
 Fixpoint asimp (e : aexpr) :=
