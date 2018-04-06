@@ -49,3 +49,34 @@ Proof. intros.
        specialize (weaken_post P (fun s : state => P s /\ bval s b = false) Q (Com.While b c)); intros.
        Reconstr.scrush (** hammer *).
 Qed.
+
+(** completeness of partial Hoare Logic *)
+
+Lemma helper: forall c (P Q: assn), (forall s t, P s -> big_step (c, s) t -> Q t) -> hoare P c Q.
+Proof. intro c.
+       induction c; sauto.
+       - Reconstr.heasy (@H)
+		     (@weaken_post, @Skip, @Big_Step.SkipSem)
+		     (@entails).
+       - apply Assign'. Reconstr.scrush (** hammer *).
+       - admit.
+       - apply If. apply IHc1. intros.
+         apply H with (s := s) (t := t). easy.
+         apply IfTrue. easy. easy.
+         apply IHc2. intros. apply H with (s := s) (t := t).
+         easy. apply IfFalse; easy.
+       - apply While'. eapply conseq;
+         Reconstr.scrush (** hammer *).
+         intros. apply H with (s := s) (t := s);
+	       Reconstr.htrivial (@H0)
+		     (@Big_Step.WhileFalse)
+	       Reconstr.Empty (** hammer *).
+Admitted.
+
+Lemma hoare_complete: forall c (P Q: assn), hoare_valid P c Q -> hoare P c Q.
+Proof. intros. apply helper. 
+       intros. unfold hoare_valid in *. 
+       apply H with (s := s); easy.
+Qed.
+
+

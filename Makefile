@@ -1,5 +1,5 @@
 
-all: imports.vo AExp.vo BExp.vo ASM.vo Star.vo Com.vo Big_Step.vo Hoare.vo Hoare_Examples.vo Hoare_Total.vo Small_Step.vo Compiler.vo
+all: imports.vo AExp.vo BExp.vo ASM.vo Star.vo Com.vo Big_Step.vo Hoare.vo Hoare_Examples.vo Hoare_Total.vo Small_Step.vo Compiler.vo Compiler2.vo
 
 imports.vo : imports.v
 	coqc imports.v
@@ -27,6 +27,9 @@ Small_Step.vo : Small_Step.v Big_Step.vo Star.vo Com.vo
 
 Compiler.vo : Compiler.v Big_Step.vo Star.vo Com.vo
 	coqc Compiler.v
+
+Compiler2.vo : Compiler2.v Compiler.vo Big_Step.vo Star.vo Com.vo
+	coqc Compiler2.v
 
 Hoare.vo : Hoare.v Big_Step.vo Com.vo AExp.vo
 	coqc Hoare.v

@@ -58,6 +58,7 @@ Proof.
     + eauto using IfFalse.
 Qed.
 
+
 Lemma lem_commute_if :
   forall b1 b2 c11 c12 c2,
     If b1 (If b2 c11 c12) c2 ~~ If b2 (If b1 c11 c2) (If b1 c12 c2).
@@ -79,9 +80,9 @@ Proof.
   - Reconstr.hobvious Reconstr.AllHyps
 		      (@WhileFalse)
 		      Reconstr.Empty.
-  - Reconstr.hsimple Reconstr.AllHyps
-		     (@WhileTrue)
-		     (@equiv_com).
+  - Reconstr.hexhaustive 1 (@H2, @IHbig_step2, @H0, @H, @H3)
+		(@WhileTrue)
+		(@equiv_com).
 Qed.
 
 Lemma lem_while_cong : forall b c c', c ~~ c' -> While b c ~~ While b c'.
