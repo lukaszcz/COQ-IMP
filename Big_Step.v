@@ -80,15 +80,9 @@ Proof.
   - Reconstr.hobvious Reconstr.AllHyps
 		      (@WhileFalse)
 		      Reconstr.Empty.
-<<<<<<< HEAD
   - Reconstr.hsimple (@IHbig_step2, @H0, @H3, @H)
 		(@WhileTrue)
 		(@equiv_com).
-=======
-  - Reconstr.hsimple Reconstr.AllHyps
-		     (@WhileTrue)
-		     (@equiv_com).
->>>>>>> 5d208fb92cc65c2d08cbeb8f1959db0c15030ac3
 Qed.
 
 Lemma lem_while_cong : forall b c c', c ~~ c' -> While b c ~~ While b c'.
