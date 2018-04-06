@@ -312,16 +312,38 @@ Ltac exec_append_tac :=
     rewrite lem_size_app;
     apply lem_exec_append_trans with
     (i' := size(l1)) (i'' := size(l2)) (s' := s) (stk' := b :: stk);
-    scrush
-  | [ H1 : exec ?l1 (0,?s,?stk) (size(?l1), ?s, ?stk1),
-      H2 : exec ?l2 (0,?s,?stk1) (size(?l2) + ?i, ?s, ?stk2)
-      |- exec (?l1 ++ ?l2) (0,?s,?stk) (size(?l1 ++ ?l2) + ?i, ?s, ?stk2) ] =>
+    solve [ omega | ycrush | scrush ]
+  | [ H1 : exec ?l1 (0,?s,?stk) (size(?l1), ?s1, ?stk1),
+      H2 : exec ?l2 (0,?s1,?stk1) (size(?l2), ?s2, ?stk2)
+      |- exec (?l1 ++ ?l2) (0,?s,?stk) (size(?l1 ++ ?l2), ?s2, ?stk2) ] =>
     rewrite lem_size_app;
     apply lem_exec_append_trans with
-    (i' := size(l1)) (i'' := size(l2) + i) (s' := s) (stk' := stk1);
-    try omega; ycrush; scrush
+    (i' := size(l1)) (i'' := size(l2)) (s' := s1) (stk' := stk1);
+    solve [ omega | ycrush | scrush ]
+  | [ H1 : exec ?l1 (0,?s,?stk) (size(?l1), ?s1, ?stk1),
+      H2 : exec ?l2 (0,?s1,?stk1) (size(?l2) + ?i, ?s2, ?stk2)
+      |- exec (?l1 ++ ?l2) (0,?s,?stk) (size(?l1 ++ ?l2) + ?i, ?s2, ?stk2) ] =>
+    rewrite lem_size_app;
+    apply lem_exec_append_trans with
+    (i' := size(l1)) (i'' := size(l2) + i) (s' := s1) (stk' := stk1);
+    solve [ omega | ycrush | scrush ]
   end;
   clear H_exec_append_tac.
+
+Ltac exec_append3_tac :=
+  intros;
+  match goal with
+  | [ H2: exec ?l2 (0,?s1,?stk1) (size(?l2),?s2,?stk2),
+      H3: exec ?l3 (0,?s2,?stk2) (size(?l3),?s3,?stk3)
+      |- exec (?l1 ++ ?l2 ++ ?l3) (0,?s,?stk) (size(?l1 ++ ?l2 ++ ?l3), ?s3, ?stk3) ] =>
+    assert (exec (l2 ++ l3) (0,s1,stk1) (size(l2 ++ l3),s3,stk3)) by exec_append_tac;
+    exec_append_tac
+  | [ H2: exec ?l2 (0,?s1,?stk1) (size(?l2),?s2,?stk2),
+      H3: exec ?l3 (0,?s2,?stk2) (size(?l3) + ?i,?s3,?stk3)
+      |- exec (?l1 ++ ?l2 ++ ?l3) (0,?s,?stk) (size(?l1 ++ ?l2 ++ ?l3) + ?i, ?s3, ?stk3) ] =>
+    assert (exec (l2 ++ l3) (0,s1,stk1) (size(l2 ++ l3) + i,s3,stk3)) by exec_append_tac;
+    exec_append_tac
+  end.
 
 (* Compilation *)
 
@@ -428,4 +450,100 @@ Proof.
     repeat rewrite HH; clear HH.
     pose proof (lem_acomp_append a a0 s stk).
     exec_append_tac.
+Qed.
+
+Fixpoint ccomp (c : com) : list instr :=
+  match c with
+  | Skip => nil
+  | Assign x a => acomp a ++ STORE x :: nil
+  | Seq c1 c2 => ccomp c1 ++ ccomp c2
+  | If b c1 c2 =>
+    let cc1 := ccomp c1 in
+    let cc2 := ccomp c2 in
+    let cb := bcomp b false (size cc1 + 1) in
+    cb ++ cc1 ++ JMP (size cc2) :: cc2
+  | While b c0 =>
+    let cc := ccomp c0 in
+    let cb := bcomp b false (size cc + 1) in
+    cb ++ cc ++ JMP (-(size cb + size cc + 1)) :: nil
+  end.
+
+(* Preservation of semantics *)
+
+Require Import Program.Equality.
+
+Ltac assert_exec_bcomp_tac :=
+  intros;
+  match goal with
+  | [ H0: bval ?s ?b = ?B |- exec ((bcomp ?b false ?k) ++ ?l) (0,?s,?stk) ?c ] =>
+    let n := fresh "n" in
+    let H := fresh "H" in
+    pose (n := k); fold n;
+    assert (H: exec (bcomp b false n) (0, s, stk)
+                    (size (bcomp b false n) + if eqb false (bval s b) then n else 0, s, stk)) by
+        (apply lem_bcomp_correct;
+         Reconstr.hyelles 4 Reconstr.Empty
+                          (@Coq.ZArith.BinInt.Z.pred_succ, @Coq.ZArith.BinInt.Z.lt_le_incl,
+                           @Coq.ZArith.BinInt.Z.lt_le_pred, @Coq.ZArith.Zorder.Zle_0_nat)
+                          (@Coq.ZArith.BinIntDef.Z.succ, @size, @n);
+         Reconstr.htrivial Reconstr.AllHyps
+                           (@Coq.ZArith.BinInt.Z.lt_succ_r)
+                           (@Coq.ZArith.BinIntDef.Z.succ, @size, @n));
+    rewrite H0 in H; cbn in H; autorewrite with yhints in H
+  end.
+
+Lemma lem_ccomp_bigstep :
+  forall c s t, (c, s) ==> t -> forall stk, exec (ccomp c) (0, s, stk) (size (ccomp c), t, stk).
+Proof.
+  intros c s t H.
+  dependent induction H; intro stk; sauto.
+  - assert (exec (STORE x :: nil) (0, s, (aval s a) :: stk)
+                 (size (STORE x :: nil), update s x (aval s a), stk)) by
+        exec_tac.
+    assert (exec (acomp a) (0, s, stk) (size (acomp a), s, aval s a :: stk)) by
+        Reconstr.hobvious Reconstr.Empty (@lem_acomp_correct) Reconstr.Empty.
+    exec_append_tac.
+  - assert (exec (ccomp c1) (0, s, stk) (size (ccomp c1), s2, stk)) by scrush.
+    assert (exec (ccomp c2) (0, s2, stk) (size (ccomp c2), s3, stk)) by scrush.
+    exec_append_tac.
+  - assert_exec_bcomp_tac.
+    assert (exec (ccomp c1) (0, s, stk) (size (ccomp c1), s', stk)) by scrush.
+    assert (exec (JMP (size (ccomp c2)) :: ccomp c2) (0, s', stk)
+                 (size (JMP (size (ccomp c2)) :: ccomp c2), s', stk)) by
+        (rewrite lem_size_succ; exec_tac).
+    exec_append3_tac.
+  - assert_exec_bcomp_tac.
+    assert (exec (ccomp c2) (0, s, stk) (size (ccomp c2), s', stk)) by scrush.
+    assert (exec (bcomp b false n ++ ccomp c1 ++ JMP (size (ccomp c2)) :: nil) (0, s, stk)
+                 (size (bcomp b false n ++ ccomp c1 ++ JMP (size (ccomp c2)) :: nil), s, stk)) by
+        (unfold n in *; repeat rewrite lem_size_app; pose lem_exec_appendR; scrush).
+    assert (exec ((bcomp b false n ++ ccomp c1 ++ JMP (size (ccomp c2)) :: nil) ++ ccomp c2) (0, s, stk)
+                 (size ((bcomp b false n ++ ccomp c1 ++ JMP (size (ccomp c2)) :: nil) ++ ccomp c2),
+                  s', stk)) by
+        exec_append_tac.
+    scrush.
+  - assert_exec_bcomp_tac.
+    repeat rewrite lem_size_app; sauto; fold n.
+    apply lem_exec_appendR; scrush.
+  - assert_exec_bcomp_tac.
+    assert (exec (ccomp c0) (0, s, stk) (size (ccomp c0), s2, stk)) by scrush.
+    assert (HH1: exec (ccomp (While b c0)) (0, s2, stk) (size (ccomp (While b c0)), s3, stk)) by scrush.
+    cbn in HH1; fold n in HH1.
+    pose (k := size (bcomp b false n) + size (ccomp c0)); fold k; fold k in HH1.
+    assert (exec (JMP (-(k+1)) :: nil) (0, s2, stk) (-k, s2, stk)) by
+        (assert (1 + -(k+1) = -k) by omega; exec_tac).
+    assert (Heq: size (JMP (-(k+1)) :: nil) + -(k+1) = -k) by
+        (assert (Hs: size (JMP (-(k+1)) :: nil) = 1) by scrush; rewrite Hs; omega).
+    assert (exec (JMP (-(k+1)) :: nil) (0, s2, stk) (size (JMP (-(k+1)) :: nil) + -(k+1), s2, stk)) by
+        (rewrite Heq; assumption).
+    assert (HH2: exec (bcomp b false n ++ ccomp c0 ++ JMP (- (k + 1)) :: nil) (0, s, stk)
+                     (size (bcomp b false n ++ ccomp c0 ++ JMP (- (k + 1)) :: nil) + -(k+1), s2, stk)) by
+        exec_append3_tac.
+    repeat rewrite lem_size_app in HH2.
+    assert (Heq2: size (bcomp b false n) +
+                  (size (ccomp c0) + size (JMP (- (k + 1)) :: nil)) + -(k+1) = 0) by
+        (rewrite Zplus_assoc; rewrite Zplus_assoc_reverse; rewrite Heq; unfold k; omega).
+    rewrite Heq2 in HH2; clear Heq2.
+    clear -HH1 HH2.
+    unfold exec in *; pose @lem_star_trans; scrush.
 Qed.
