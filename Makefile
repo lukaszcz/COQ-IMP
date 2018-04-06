@@ -27,13 +27,13 @@ Small_Step.vo : Small_Step.v Big_Step.vo Star.vo Com.vo
 
 Compiler.vo : Compiler.v Big_Step.vo Star.vo Com.vo
 	coqc Compiler.v
-	
+
 Hoare.vo : Hoare.v Big_Step.vo Com.vo AExp.vo
 	coqc Hoare.v
 
 Hoare_Examples.vo : Hoare_Examples.v Hoare.vo Big_Step.vo Com.vo AExp.vo
 	coqc Hoare_Examples.v
-	
+
 Hoare_Total.vo : Hoare_Total.v Hoare.vo Big_Step.vo Com.vo AExp.vo
 	coqc Hoare_Total.v
 

@@ -333,7 +333,7 @@ Fixpoint acomp (a : aexpr) : list instr :=
   end.
 
 Lemma lem_acomp_correct :
-  forall a s stk, exec (acomp a) (0,s,stk) (size(acomp a),s, aval s a :: stk).
+  forall a s stk, exec (acomp a) (0, s, stk) (size(acomp a), s, aval s a :: stk).
 Proof.
   induction a; sauto.
   - exec_tac.
