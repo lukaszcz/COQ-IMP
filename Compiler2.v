@@ -13,11 +13,6 @@ Fixpoint exec_n (l: list instr) (c1: config) (n: nat) (c2: config): Prop :=
     | S m => exists c', (exec1 l c1 c') /\ (exec_n l c' m c2)
   end.
 
-Lemma exec_n_exec: forall n P c1 c2, exec_n P c1 n c2 -> (exec P) c1 c2.
-Proof. unfold exec. intro n.
-      induction n; sauto.
-Admitted.
-
 Definition isuccs (i: instr) (n: Z): list Z :=
   match i with
     | JMP j     => [n + 1 + j]
@@ -26,14 +21,9 @@ Definition isuccs (i: instr) (n: Z): list Z :=
     | _         => [n + 1]
   end.
 
-
-Parameter i: Z.
-Parameter def: instr.
-
-Definition succs (P: list instr) (n: Z): list Z :=
-  let cond := (Z.leb i 0) && (Nat.ltb (Z.to_nat i) (List.length P)) in
-  let s    := if cond then isuccs (znth i P def) n else [] in
-  s.
+Definition succs (P: list instr) (n: Z)  
+                 (exprf: { i: Z & (Z.le i 0) /\ (Nat.lt (Z.to_nat i) (List.length P))}): list Z :=
+  isuccs (znth (projT1 exprf) P ADD) n.
 
 Fixpoint eqb_instr (i1 i2: instr): bool :=
   match i1, i2 with
@@ -65,10 +55,29 @@ Fixpoint seqZ (start:Z) (len:nat) : list Z :=
     | S len => start :: seqZ (Z.succ start) len
   end.
 
-Definition _exists (P: list instr): list Z :=
-  let l1   := succs P 0 in
+Definition _exists (P: list instr)
+                   (exprf: { i: Z & (Z.le i 0) /\ (Nat.lt (Z.to_nat i) (List.length P))}): list Z :=
+  let l1   := succs P 0 exprf in
   let l2   := seqZ 0 (List.length P) in
   (List.filter ( fun a => negb (is_in_Z a l1)) l2).
+
+Lemma exec_0: forall P c, exec_n P c 0 c.
+Proof. scrush. Qed.
+
+Lemma exec_n_exec: forall n P c1 c2, exec_n P c1 n c2 -> exec P c1 c2.
+Proof. unfold exec. intro n. 
+       induction n; intros.
+       scrush.
+       destruct H.
+       eapply @star_step with (y := x). easy.
+       apply IHn. easy.
+Qed.
+
+Lemma exec_Suc: forall n P c1 c2 c3, exec P c1 c2 -> exec_n P c2 n c3 -> exec_n P c1 (S n) c3.
+Proof. Admitted.
+
+Lemma exec_exec_n: forall n P c1 c2, exec P c1 c2 -> exec_n P c1 n c2.
+Proof. Admitted.
 
 (** go through the whole file..! *)
 

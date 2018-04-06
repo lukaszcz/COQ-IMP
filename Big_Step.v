@@ -80,7 +80,7 @@ Proof.
   - Reconstr.hobvious Reconstr.AllHyps
 		      (@WhileFalse)
 		      Reconstr.Empty.
-  - Reconstr.hexhaustive 1 (@H2, @IHbig_step2, @H0, @H, @H3)
+  - Reconstr.hsimple (@IHbig_step2, @H0, @H3, @H)
 		(@WhileTrue)
 		(@equiv_com).
 Qed.

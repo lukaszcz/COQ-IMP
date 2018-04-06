@@ -59,7 +59,7 @@ Proof. intro c.
 		     (@weaken_post, @Skip, @Big_Step.SkipSem)
 		     (@entails).
        - apply Assign'. Reconstr.scrush (** hammer *).
-       - admit.
+       - hammer. admit.
        - apply If. apply IHc1. intros.
          apply H with (s := s) (t := t). easy.
          apply IfTrue. easy. easy.
