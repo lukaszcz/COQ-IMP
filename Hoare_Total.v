@@ -57,9 +57,8 @@ Lemma While_fun': forall b (P Q: assn) c (f: state -> nat),
                  hoaret P (Com.While b c) Q.
 Proof. intros.
        apply (weaken_post P (fun s : state => P s /\ bval s b = false) Q (Com.While b c)).
-       - Reconstr.scrush (** hammer *).
-       - apply (While P b c (fun s n => n = f s)).
-         pose conseq; unfold entails in *; scrush.
+       - scrush.
+       - pose While; pose conseq; unfold entails in *; yelles 3.
 Qed.
 
 (** todos *)
