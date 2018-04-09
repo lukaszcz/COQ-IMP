@@ -85,7 +85,7 @@ Fixpoint instr_eqb (i1 i2: instr): bool :=
   end.
 
 Definition succs (P: list instr) (n: Z)
-                 (exprf: { i: Z | (Z.le 0 i) /\ (Nat.lt (Z.to_nat i) (List.length P))}): list Z :=
+                 (exprf: { i: Z | (Z.le 0 i) /\ (i < size P)}): list Z :=
  isuccs (znth (proj1_sig exprf) P ADD) (n + (proj1_sig exprf)).
 
 Fixpoint seq (start:Z) (len:nat): list Z :=
@@ -274,16 +274,15 @@ Proof. intros; destruct p;
          @Coq.ZArith.BinInt.Z.log2_up_null, @Coq.ZArith.Znat.Z2Nat.inj_0, 
          @Coq.ZArith.Znat.Z2Nat.inj_succ, @Coq.ZArith.Znat.Z2Nat.inj_lt,
          @Coq.ZArith.BinInt.Z.one_succ) (@Coq.Arith.PeanoNat.Nat.lt); scrush.
-        } rewrite H1. cbn. scrush.
+        } rewrite H1; scrush.
 Qed.
 
 Lemma succs_empty: forall n p, succs [] n p = [].
-Proof. intros; destruct p; scrush. Qed.
-
-Lemma prf_cons: forall (x: instr) (xs: list instr), 
-{i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (List.length xs)} -> 
-{i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (List.length (x :: xs))}.
-Proof. intros. destruct H. exists x0. scrush. Defined.
+Proof. intros; destruct p; unfold succs; cbn in *;
+	     Reconstr.hobvious (@a)
+		   (@Coq.ZArith.BinInt.Z.lt_nge, @Coq.ZArith.Znat.Z2Nat.inj_lt, @Coq.ZArith.BinInt.Z.le_refl)
+		   Reconstr.Empty.
+Qed.
 
 Lemma succs_iexec1: forall P s stk c p, c = iexec (znth (proj1_sig p) P ADD) ((proj1_sig p), s, stk) ->
                                         List.In (fst (fst c)) (succs P 0 p).
@@ -459,7 +458,8 @@ Proof. intros.
        rewrite H2. cbn.
        destruct H. left.
 	     Reconstr.htrivial (@H)
-		   (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_succ_r, @Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Zplus_minus)
+		   (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_succ_r, 
+        @Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Zplus_minus)
 		   (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
        destruct H. right.
 	     Reconstr.htrivial (@H)
@@ -467,6 +467,15 @@ Proof. intros.
 		   (@Coq.ZArith.BinIntDef.Z.succ, @Coq.ZArith.BinIntDef.Z.sub).
        scrush.
 Qed.
+
+Lemma prf_cons: forall (x: instr) (xs: list instr), 
+{i : Z | 0 <= i /\ i < (size xs)} -> 
+{i : Z | 0 <= i /\ i < (size (x :: xs))}.
+Proof. intros. destruct H. exists x0; unfold size in *; cbn in *;
+     	 Reconstr.hobvious (@a)
+		  (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.Znat.Zpos_P_of_succ_nat)
+		  (@Coq.ZArith.BinInt.Z.lt, @Coq.ZArith.BinInt.Z.le, @Compiler.size).
+Defined.
 
 Lemma succs_Cons: forall x xs n p,
 succs (x :: xs) n (prf_cons x xs p) = remove_dupsZ (isuccs x n ++ succs xs (n + 1) p).
@@ -476,17 +485,20 @@ Lemma acomp_succs: forall a (n: Z) p, succs (acomp a) n p = seqZ n (Z.to_nat n +
 Proof. Admitted.
 
 Lemma helper: forall (xs ys: list instr) a,
-Nat.lt (Z.to_nat a) (Datatypes.length ys) ->
-Nat.lt (Z.to_nat a) (Datatypes.length (xs ++ ys)).
+   a < size ys ->
+   a < size (xs ++ ys).
 Proof. intro xs.
        induction xs; intros.
        - now cbn.
-       - simpl. scrush.
+       - Reconstr.hsimple (@IHxs, @H)
+		     (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.Znat.Zpos_P_of_succ_nat, 
+          @Coq.Lists.List.app_length, @Coq.ZArith.BinInt.Z.lt_eq_cases)
+		      (@Compiler.size).
 Qed.
 
 Lemma prf_concat: forall (xs ys: list instr),
-{i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (Datatypes.length ys)} ->
-{i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (Datatypes.length (xs ++ ys))}. 
+{i : Z | 0 <= i /\ i < size ys} ->
+{i : Z | 0 <= i /\ i < size (xs ++ ys)}. 
 Proof. intros. destruct H. exists x. split. easy.
        destruct a. now apply helper.
 Defined.
