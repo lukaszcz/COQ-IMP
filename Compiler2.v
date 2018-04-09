@@ -7,19 +7,33 @@ Local Open Scope Z_scope.
 Local Open Scope list_scope.
 Import ListNotations.
 
+Fixpoint is_in_Z (a: Z) (l: list Z) : bool :=
+  match l with
+    | [] => false
+    | b :: m => Z.eqb b a || is_in_Z a m
+  end.
+
+Fixpoint remove_dupsZ (l: list Z) :=
+  match l with
+    | [] => []
+    | x :: xs => if (is_in_Z x xs) then remove_dupsZ xs else x :: remove_dupsZ xs
+  end.
+
 Fixpoint exec_n (l: list instr) (c1: config) (n: nat) (c2: config): Prop :=
   match n with
     | O   => c1 = c2
     | S m => exists c', (exec1 l c1 c') /\ (exec_n l c' m c2)
   end.
 
-Definition isuccs (i: instr) (n: Z): list Z  :=
+Definition _isuccs (i: instr) (n: Z): list Z  :=
   match i with
     | JMP j     => [n + 1 + j]
     | JMPLESS j => [n + 1 + j; n + 1]
     | JMPGE j   => [n + 1 + j; n + 1]
     | _         => [n + 1]
   end.
+
+Definition isuccs i n := remove_dupsZ (_isuccs i n).
 
 Definition ascii_eqb (a b: Ascii.ascii) :=
   match a, b with
@@ -68,18 +82,6 @@ Fixpoint instr_eqb (i1 i2: instr): bool :=
     | JMPLESS i, JMPLESS j => Z.eqb i j
     | JMPGE i, JMPGE j     => Z.eqb i j
     | _, _                 => false
-  end.
-
-Fixpoint is_in (a: instr) (l: list instr) : bool :=
-  match l with
-    | [] => false
-    | b :: m => instr_eqb b a || is_in a m
-  end.
-
-Fixpoint is_in_Z (a: Z) (l: list Z) : bool :=
-  match l with
-    | [] => false
-    | b :: m => Z.eqb b a || is_in_Z a m
   end.
 
 Definition succs (P: list instr) (n: Z)
@@ -255,24 +257,24 @@ End CSES.
 
 Section BP_term_succs.
 
-Lemma succs_simps: forall n v x i p, succs [ADD] n p       = [n + 1]            /\
-                                     succs [LOADI v] n p   = [n + 1]            /\
-                                     succs [LOAD x] n p    = [n + 1]            /\
-                                     succs [STORE x] n p   = [n + 1]            /\
-                                     succs [JMP i] n p     = [n + 1 + i]        /\
-                                     succs [JMPGE i] n p   = [n + 1 + i; n + 1] /\
-                                     succs [JMPLESS i] n p = [n + 1 + i; n + 1].
+Lemma succs_simps: forall n v x i p, succs [ADD] n p       = remove_dupsZ [n + 1]            /\
+                                     succs [LOADI v] n p   = remove_dupsZ [n + 1]            /\
+                                     succs [LOAD x] n p    = remove_dupsZ [n + 1]            /\
+                                     succs [STORE x] n p   = remove_dupsZ [n + 1]            /\
+                                     succs [JMP i] n p     = remove_dupsZ [n + 1 + i]        /\
+                                     succs [JMPGE i] n p   = remove_dupsZ [n + 1 + i; n + 1] /\
+                                     succs [JMPLESS i] n p = remove_dupsZ [n + 1 + i; n + 1].
 Proof. intros; destruct p; 
        unfold succs; cbn in *;
        destruct a;
        assert (x0 = 0).
 	     { Reconstr.htrivial (@H, @H0)
-		    (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.BinInt.Z.le_refl, 
+		     (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.BinInt.Z.le_refl, 
          @Coq.ZArith.BinInt.Z.le_antisymm, @Coq.ZArith.BinInt.Z.log2_up_nonpos, 
          @Coq.ZArith.BinInt.Z.log2_up_null, @Coq.ZArith.Znat.Z2Nat.inj_0, 
          @Coq.ZArith.Znat.Z2Nat.inj_succ, @Coq.ZArith.Znat.Z2Nat.inj_lt,
          @Coq.ZArith.BinInt.Z.one_succ) (@Coq.Arith.PeanoNat.Nat.lt); scrush.
-        } scrush.
+        } rewrite H1. cbn. scrush.
 Qed.
 
 Lemma succs_empty: forall n p, succs [] n p = [].
@@ -281,19 +283,49 @@ Proof. intros; destruct p; scrush. Qed.
 Lemma prf_cons: forall (x: instr) (xs: list instr), 
 {i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (List.length xs)} -> 
 {i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (List.length (x :: xs))}.
-Proof. intros. destruct H. exists x0. scrush. Defined. 
+Proof. intros. destruct H. exists x0. scrush. Defined.
 
-Lemma succs_Cons: forall x xs n p,
-NoDup (succs (x :: xs) n (prf_cons x xs p)) ->
-NoDup ((isuccs x n ++ succs xs (n + 1) p)) ->
-succs (x :: xs) n (prf_cons x xs p) = (isuccs x n ++ succs xs (n + 1) p).
-Proof. Admitted.
-
-Lemma succs_iexec1: forall P s stk c p, 
-                                        c = iexec (znth (proj1_sig p) P ADD) ((proj1_sig p), s, stk) ->
+Lemma succs_iexec1: forall P s stk c p, c = iexec (znth (proj1_sig p) P ADD) ((proj1_sig p), s, stk) ->
                                         List.In (fst (fst c)) (succs P 0 p).
-Proof. intros; destruct c, p0, p; unfold succs, isuccs; scrush. Qed.
-
+Proof. intros; destruct c, p0, p; unfold succs, isuccs, _isuccs. cbn in *.
+       case_eq (znth x P ADD ); intros; rewrite H0 in *;
+       try scrush.
+       case_eq (hd 0 (tl stk) <? hd 0 stk); intros; rewrite H1 in *; inversion H; try scrush.
+       unfold remove_dupsZ.
+       case_eq (is_in_Z (x + 1 + z0) [x + 1]); intros.
+       inversion H2.
+       assert ((x + 1 =? x + 1 + z0) = true). scrush.
+       assert ((x + 1 = x + 1 + z0)).
+       { Reconstr.htrivial (@H6)
+	     	 (@Coq.ZArith.BinInt.Z.add_1_l, @Coq.ZArith.BinInt.Z.eqb_eq)
+		     (@Coq.ZArith.BinIntDef.Z.succ).
+       }  
+       assert (z0 = 0).
+       { Reconstr.hsimple (@H8)
+		     (@Coq.ZArith.BinInt.Z.add_cancel_l, @Coq.ZArith.BinInt.Z.add_0_r)
+		     Reconstr.Empty.
+       } subst. cbn. scrush.
+       cbn. now left.
+       inversion H. 
+       case_eq (hd 0 (tl stk) >=? hd 0 stk); intros; rewrite H1 in *.
+       inversion H. cbn.
+       case_eq ( (x + 1 =? x + 1 + z0)); intros.
+       assert ((x + 1 = x + 1 + z0)).
+       { Reconstr.htrivial (@H5)
+	     	 (@Coq.ZArith.BinInt.Z.add_1_l, @Coq.ZArith.BinInt.Z.eqb_eq)
+		     (@Coq.ZArith.BinIntDef.Z.succ).
+       }
+       assert (z0 = 0).
+       { Reconstr.hsimple (@H9)
+		     (@Coq.ZArith.BinInt.Z.add_cancel_l, @Coq.ZArith.BinInt.Z.add_0_r)
+		     Reconstr.Empty.
+       } subst. cbn. scrush.
+       scrush.
+       cbn.
+       case_eq ((x + 1 =? x + 1 + z0)); intros.
+       now left.
+       right. scrush.
+Qed.
 
 Lemma In_Singleton: forall {A} (a b: A),  In a [b] -> a = b.
 Proof. intros; destruct H; cbn in *; scrush. Qed.
@@ -334,31 +366,111 @@ Proof. intros.
 		     (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Zplus_minus)
 		     Reconstr.Empty.
        } scrush.
-       inversion H.
-       assert (k = n + x + 1 + z).
+       cbn in *.
+       case_eq ((x + 1 =? x + 1 + z)); intros.
+       assert ((x + 1 = x + 1 + z)).
        { Reconstr.htrivial (@H1)
-		     (@Coq.ZArith.BinInt.Zplus_minus, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
-		     Reconstr.Empty.
-       } scrush.
-       apply In_Singleton in H1.
+		     (@Coq.ZArith.BinInt.Z.add_1_l, @Coq.ZArith.BinInt.Z.eqb_eq)
+		     (@Coq.ZArith.BinIntDef.Z.succ).
+       }
+       assert (z = 0).
+       { Reconstr.hsimple (@H2)
+		     (@Coq.ZArith.BinInt.Z.add_cancel_l, @Coq.ZArith.BinInt.Z.add_0_r)
+		      Reconstr.Empty; scrush.
+       } subst. cbn.
+       assert (n + x + 1 + 0 = n + x + 1).
+       { scrush. }
+       rewrite H3.
+       assert ((n + x + 1 =? n + x + 1) = true).
+       { Reconstr.htrivial Reconstr.Empty
+		     (@Coq.ZArith.BinInt.Z.eqb_eq)
+		     (@Coq.ZArith.BinIntDef.Z.succ); scrush.
+       }
+       rewrite H4. cbn.
+       assert ((x + 1 =? x + 1 + 0) = true).
+       { scrush. }
+       rewrite H5 in *. cbn in *.
        assert (k = n + x + 1).
-       { Reconstr.htrivial (@H1)
-		     (@Coq.ZArith.BinInt.Zplus_minus, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
-		     Reconstr.Empty.
+       { Reconstr.htrivial (@H)
+		     (@Coq.ZArith.BinInt.Zplus_succ_r_reverse, @Coq.ZArith.BinInt.Zplus_minus)
+		     (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
        } scrush.
-       inversion H.
-       assert (k = n + x + 1 + z).
-       { Reconstr.htrivial (@H1)
-		     (@Coq.ZArith.BinInt.Zplus_minus, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
+       rewrite H1 in *. cbn in *.
+       assert ((n + x + 1 <> n + x + 1 + z)).
+       { assert (x + 1 <> x + 1 + z).
+         { Reconstr.hcrush (@H1)
+	       	 (@Coq.ZArith.BinInt.Z.add_0_r, @Coq.ZArith.BinInt.Z.eqb_eq, @Coq.ZArith.BinInt.Z.add_cancel_l)
+		       (@Coq.ZArith.BinIntDef.Z.succ).
+         } unfold Logic.not in *. intros.  
+         specialize (Coq.ZArith.BinInt.Z.add_cancel_l (x + 1) (x + 1 + z) n); intros.
+         apply H2. apply H4.	
+        Reconstr.htrivial (@H3)
+		    (@Coq.ZArith.BinInt.Zplus_succ_r_reverse, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
+	      (@Coq.ZArith.BinIntDef.Z.succ).
+       }
+       assert ((n + x + 1 =? n + x + 1 + z) = false).
+       { Reconstr.htrivial (@H2)
+		     (@Coq.ZArith.BinInt.Z.eqb_neq)
 		     Reconstr.Empty.
-       } scrush.
-       apply In_Singleton in H1.
-       assert (k = n + x + 1).
-       { Reconstr.htrivial (@H1)
-		     (@Coq.ZArith.BinInt.Zplus_minus, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
-		     Reconstr.Empty.
-       } scrush.
+       }
+       rename H2 into H2a.
+       rename H3 into H2.
+       rewrite H2. cbn.
+       destruct H. left.
+	     Reconstr.htrivial (@H)
+		   (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_succ_r, @Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Zplus_minus)
+		   (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
+       destruct H.
+       right. left.
+	     Reconstr.htrivial (@H) 
+		   (@Coq.ZArith.BinInt.Z.add_succ_r, @Coq.ZArith.BinInt.Zplus_minus)
+		   (@Coq.ZArith.BinIntDef.Z.succ, @Coq.ZArith.BinIntDef.Z.sub). scrush.
+
+       cbn in *.
+       case_eq ((x + 1 =? x + 1 + z)); intros; rewrite H1 in *; cbn in *.
+       destruct H.
+       assert ( (n + x + 1 =? n + x + 1 + z) = true).
+       { Reconstr.hcrush (@H1)
+		    (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_succ_r, @Coq.ZArith.BinInt.Z.eqb_eq, @Coq.ZArith.BinInt.Z.eqb_refl)
+		    (@Coq.ZArith.BinIntDef.Z.succ).
+       } rewrite H2. cbn. left. 
+       Reconstr.htrivial (@H)
+       (@Coq.ZArith.BinInt.Zplus_succ_r_reverse, @Coq.ZArith.BinInt.Zplus_minus)
+       (@Coq.ZArith.BinIntDef.Z.succ, @Coq.ZArith.BinIntDef.Z.sub).
+       scrush.
+       assert ((n + x + 1 <> n + x + 1 + z)).
+       { assert (x + 1 <> x + 1 + z).
+         { Reconstr.hcrush (@H1)
+	       	 (@Coq.ZArith.BinInt.Z.add_0_r, @Coq.ZArith.BinInt.Z.eqb_eq, @Coq.ZArith.BinInt.Z.add_cancel_l)
+		       (@Coq.ZArith.BinIntDef.Z.succ).
+         } unfold Logic.not in *. intros.  
+         specialize (Coq.ZArith.BinInt.Z.add_cancel_l (x + 1) (x + 1 + z) n); intros.
+         apply H2. apply H4.	
+        Reconstr.htrivial (@H3)
+		    (@Coq.ZArith.BinInt.Zplus_succ_r_reverse, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
+	      (@Coq.ZArith.BinIntDef.Z.succ).
+       }
+       assert ((n + x + 1 =? n + x + 1 + z) = false).
+       { Reconstr.htrivial (@H2)
+		     (@Coq.ZArith.BinInt.Z.eqb_neq)
+		      Reconstr.Empty. }
+       rename H2 into H2a.
+       rename H3 into H2.
+       rewrite H2. cbn.
+       destruct H. left.
+	     Reconstr.htrivial (@H)
+		   (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_succ_r, @Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Zplus_minus)
+		   (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
+       destruct H. right.
+	     Reconstr.htrivial (@H)
+		   (@Coq.ZArith.BinInt.Z.add_succ_r, @Coq.ZArith.BinInt.Zplus_minus)
+		   (@Coq.ZArith.BinIntDef.Z.succ, @Coq.ZArith.BinIntDef.Z.sub).
+       scrush.
 Qed.
+
+Lemma succs_Cons: forall x xs n p,
+succs (x :: xs) n (prf_cons x xs p) = remove_dupsZ (isuccs x n ++ succs xs (n + 1) p).
+Proof. Admitted.
 
 Lemma acomp_succs: forall a (n: Z) p, succs (acomp a) n p = seqZ n (Z.to_nat n + (List.length (acomp a))).
 Proof. Admitted.
@@ -377,7 +489,7 @@ Lemma prf_concat: forall (xs ys: list instr),
 {i : Z | 0 <= i /\ Nat.lt (Z.to_nat i) (Datatypes.length (xs ++ ys))}. 
 Proof. intros. destruct H. exists x. split. easy.
        destruct a. now apply helper.
-Defined.  
+Defined.
 
 Lemma succs_append: forall xs ys n p q, succs (xs ++ ys) n (prf_concat xs ys p) = succs xs n q ++ succs ys (n + size xs) p.
 Proof. Admitted.
