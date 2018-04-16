@@ -106,13 +106,31 @@ Section BP_term_exec_n.
 Lemma exec_0: forall P c, exec_n P c 0 c.
 Proof. scrush. Qed.
 
-Lemma exec_n_exec: forall n P c1 c2, exec_n P c1 n c2 -> exec P c1 c2.
-Proof. unfold exec. intro n. 
-       induction n; intros.
-       scrush.
-       destruct H.
-       eapply @star_step with (y := x); scrush.
+Lemma exec_Suc: forall n P c1 c2 c3, exec1 P c1 c2 -> exec_n P c2 n c3 -> exec_n P c1 (S n) c3.
+Proof. intros. simpl.
+       exists c2. scrush.
 Qed.
+
+Lemma exec_n_exec: forall n P c1 c2,
+exec_n P c1 n c2 -> exec P c1 c2.
+Proof. induction n; intros; destruct H.
+- scrush. 
+- pose @star_step;
+Reconstr.hobvious (@H, @IHn)
+(@Star.star_step)
+(@Compiler.exec). Qed.
+
+Lemma exec_exec_n: forall P c1 c2,
+exec P c1 c2 ->exists n, exec_n P c1 n c2.
+Proof. intros; induction H.
+- exists O; scrush. 
+- pose exec_Suc; scrush. Qed.
+
+Lemma exec_eq_exec_n: forall P c1 c2, 
+exec P c1 c2 <-> exists n, exec_n P c1 n c2.
+Proof. pose exec_exec_n; 
+pose exec_n_exec; scrush. Qed.
+
 
 Lemma exec1_exec_n: forall P c1 c2, exec1 P c1 c2 <-> exec_n P c1 1 c2.
 Proof. scrush. Qed.
@@ -126,26 +144,6 @@ Proof. intros.
 		     (@Star.star_step)
 		     (@Compiler.exec) (** *hammer *)].
 Qed.
-
-Lemma exec_Suc: forall n P c1 c2 c3, exec1 P c1 c2 -> exec_n P c2 n c3 -> exec_n P c1 (S n) c3.
-Proof. intros. simpl.
-       exists c2. scrush.
-Qed.
-
-Lemma exec_exec_n: forall P c1 c2, exec P c1 c2 -> exists n, exec_n P c1 n c2.
-Proof. intros.
-       induction H; intros.
-       - exists O. scrush.
-       - destruct IHstar as (n, IH).
-         exists (S n). apply exec_Suc with (c2 := y); scrush.
-Qed.
-
-Lemma exec_equiv_exec_n: forall P c1 c2, exec P c1 c2 <-> exists n, exec_n P c1 n c2.
-Proof. intros. split.
-       intros; now eapply exec_exec_n in H.
-       intros. destruct H. now eapply exec_n_exec in H.
-Qed.
-
 
 Lemma exec_n_Nil_l: forall k c1 c2, exec_n [] c1 k c2 -> (c1 = c2 /\ k = O).
 Proof. intro k.
@@ -226,7 +224,7 @@ Proof. split; intros.
        pose exec1_n_step_l; scrush.
 Qed.
 
-Lemma execn_end: forall k n n' P s s' stk stk',
+Lemma exec_n_end: forall k n n' P s s' stk stk',
   size P <= n -> exec_n P (n, s, stk) k (n', s', stk') -> (n' = n /\ stk' = stk /\ s' = s /\ k = 0%nat).
 Proof. intro k.
        induction k; intros.
@@ -477,12 +475,25 @@ Proof. intros. destruct H. exists x0; unfold size in *; cbn in *;
 		  (@Coq.ZArith.BinInt.Z.lt, @Coq.ZArith.BinInt.Z.le, @Compiler.size).
 Defined.
 
-Lemma succs_Cons: forall x xs n p,
-succs (x :: xs) n (prf_cons x xs p) = remove_dupsZ (isuccs x n ++ succs xs (n + 1) p).
-Proof. Admitted.
+Lemma succs_Cons: forall x xs n q,
+succs (x :: xs) n (prf_cons x xs q) = remove_dupsZ (isuccs x n ++ succs xs (n + 1) q).
+Proof. intros. unfold succs.
+       cut (exists k, List.In k (succs (x :: xs) n (prf_cons x xs q))); intros.
+       destruct H as (k, H).
+       destruct q as (i, iH).
+       assert ((fun p P n i => 0 <= i /\ i < size P /\ List.In p (isuccs (znth i P ADD) (n + i)))
+       k (x :: xs) n i). split. inversion iH. easy.
+       split. inversion iH.
+	     Reconstr.hcrush (@H1)
+		    (@Coq.ZArith.BinInt.Z.lt_succ_r, @Compiler.lem_size_succ)
+		    (@Coq.ZArith.BinInt.Z.lt, @Coq.ZArith.BinInt.Z.le,
+         @Coq.ZArith.BinIntDef.Z.succ). scrush.
 
-Lemma acomp_succs: forall a (n: Z) p, succs (acomp a) n p = seqZ n (Z.to_nat n + (List.length (acomp a))).
-Proof. Admitted.
+       unfold succs in *. cbn in *.
+       case_eq ( Z.to_nat i); intros.
+       assert (i = 0) by admit.
+Admitted.
+
 
 Lemma helper: forall (xs ys: list instr) a,
    a < size ys ->
@@ -503,12 +514,80 @@ Proof. intros. destruct H. exists x. split. easy.
        destruct a. now apply helper.
 Defined.
 
-Lemma succs_append: forall xs ys n p q, succs (xs ++ ys) n (prf_concat xs ys p) = succs xs n q ++ succs ys (n + size xs) p.
+Lemma succs_append: forall xs ys n p q, succs (xs ++ ys) n (prf_concat xs ys p) = 
+                                        succs xs n q ++ succs ys (n + size xs) p.
 Proof. Admitted.
+
 
 (** go through the whole file..! *)
 
 
 End BP_term_succs.
+
+Section Corr.
+
+Lemma not_Nil: forall a b, a ++ b ++ [ADD] <> [].
+Proof. induction a; sauto; scrush. Qed.
+
+Lemma acomq_neq_nil: forall a, acomp a <> [].
+Proof. induction a; try (cbn; easy).
+       pose not_Nil; scrush.
+Qed.
+
+Lemma acomp_exec1_n_h: forall s s' stk stk' v,
+  exec1 [LOADI v] (0, s, stk) (1, s', stk') -> s' = s.
+Proof. scrush. Qed.
+
+
+Lemma acomp_exec_n: forall a n s s' stk stk',
+  exec_n (acomp a) (0, s, stk) n (size (acomp a), s', stk') ->
+  s' = s /\ stk' = (aval s a) :: stk.
+Proof. induction a; intros.
+       - apply exec_n_step in H. destruct H, H, x, p.
+         assert (z = 1). scrush. subst.
+         assert (size [LOADI v] <= 1). scrush.
+         destruct H0.
+         specialize (@exec_n_end (n - 1) 1 1 
+                    [LOADI v] s1 s' s0 stk' H1 H0); intros.
+         assert (s1 = s). scrush.
+         scrush. scrush.
+       - apply exec_n_step in H. destruct H, H, x, p.
+         cbn in *.
+         assert (z = 1). scrush. subst.
+         assert (size [LOAD v] <= 1). scrush.
+         destruct H0.
+         specialize (@exec_n_end (n - 1) 1 1 
+                    [LOAD v] s1 s' s0 stk' H1 H0); intros.
+         assert (s1 = s). scrush.
+         scrush. scrush.
+       - cbn in *.
+         case_eq (Aplus a1 a2); intros.
+         assert ((size (acomp a1 ++ acomp a2 ++ [ADD]) =
+                 (size (acomp a1) + (size (acomp a2) + 1)))) by admit.
+         rewrite H1 in H.
+Admitted.
+
+
+
+End Corr.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
