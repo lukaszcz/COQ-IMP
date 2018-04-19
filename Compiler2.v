@@ -174,7 +174,8 @@ Proof.
 		          (@Coq.ZArith.Znat.Z2Nat.inj_succ)
 		          (@Coq.ZArith.BinIntDef.Z.succ) |
 	  Reconstr.hcrush Reconstr.AllHyps
-		          (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.Znat.Z2Nat.inj_succ, @Coq.ZArith.BinInt.Z.add_succ_l, @Coq.ZArith.BinInt.Z.add_shuffle3)
+		          (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_comm, 
+               @Coq.ZArith.Znat.Z2Nat.inj_succ, @Coq.ZArith.BinInt.Z.add_succ_l, @Coq.ZArith.BinInt.Z.add_shuffle3)
 		          (@Compiler.znth, @Coq.ZArith.BinIntDef.Z.succ) ].
 Qed.
 
@@ -185,4 +186,178 @@ Proof.
   sauto; exists n; scrush.
 Qed.
 
+Lemma In_help: forall p n x, In (p - n) [x + 1] <-> In p [n + x + 1].
+Proof. split; intros; unfold In in *. 
+       destruct H. left. 
+      	Reconstr.heasy (@AllHyps)
+	 	   (@Coq.ZArith.BinInt.Z.add_0_r, @Coq.ZArith.BinInt.Z.add_comm, 
+        @Coq.ZArith.BinInt.Z.sub_add_simpl_r_l, @Coq.ZArith.BinInt.Z.add_succ_l)
+		   (@Coq.ZArith.BinIntDef.Z.succ).
+       scrush.
+       destruct H. left.
+	     Reconstr.heasy (@AllHyps)
+		   (@Coq.ZArith.BinInt.Z.add_succ_l, @Coq.ZArith.BinInt.Z.add_0_r, 
+        @Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.BinInt.Z.add_assoc, 
+        @Coq.ZArith.BinInt.Z.add_opp_r, @Coq.ZArith.BinInt.Z.sub_add_simpl_r_l, @Coq.ZArith.BinInt.Z.add_0_l)
+		   (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
+       scrush.
+Qed.
+
+
+Lemma succs_shift: forall n p P, IsSucc P 0 (p - n) <-> IsSucc P n p.
+Proof. split; intros; unfold IsSucc, isuccs.
+       destruct H. exists x.
+       destruct H, H0.
+       split. easy.
+       split. easy. cbn in *.
+       case_eq (znth x P ADD); intros; unfold isuccs in *; rewrite H2 in *; try  now apply In_help.
+       specialize (In_help p n (x + z)); intros.
+       assert (n + (x + z) + 1 = n + x + 1 + z) by
+	      Reconstr.htrivial Reconstr.Empty
+		   (@Coq.ZArith.BinInt.Z.add_succ_l, @Coq.ZArith.BinInt.Z.add_assoc)
+		   (@Coq.ZArith.BinIntDef.Z.succ); subst;
+       assert (x + z + 1 = x + 1 + z) by 	
+         Reconstr.htrivial Reconstr.Empty
+		    (@Coq.ZArith.BinInt.Z.add_succ_l)
+		    (@Coq.ZArith.BinIntDef.Z.succ); subst.
+       (scrush;
+       unfold In in *;
+       destruct H1; left; omega;
+       destruct H1; right; left; omega;
+       scrush).
+       unfold In in *.
+       destruct H1. left. omega.
+       destruct H1. right. left. omega.
+       scrush.
+       unfold In in *.
+       destruct H1. left. omega.
+       destruct H1. right. left. omega.
+       scrush.
+       unfold IsSucc, isuccs in H. destruct H.
+       exists x. split. easy. split. easy.
+       destruct H, H0; cbn in *;
+       case_eq (znth x P ADD); intros; rewrite H2 in *; try now apply In_help.
+       unfold In in H1. destruct H1.
+       simpl. left. omega.
+       scrush. 
+       unfold In in H1. destruct H1.
+       simpl. left. omega.
+       unfold In in H1. destruct H1.
+       simpl. right. left. omega.
+       scrush.
+       unfold In in H1. destruct H1.
+       simpl. left. omega.
+       destruct H1.
+       simpl. right. left. omega.
+       scrush.
+Qed.
+
+Lemma helper: forall y n, n + 1 + Z.of_nat y = n + Z.of_nat (1 + y).
+Proof. intro n; induction n; intros.
+       - cbn. scrush.
+       - specialize (Z.add_cancel_l (1 + Z.of_nat (S n)) (Z.of_nat (1 + S n)) n0); intros.
+         rewrite <- Z.add_assoc.
+         apply H. scrush.
+Qed.
+
+Lemma succs_append_l: forall xs ys n s, IsSucc (xs ++ ys) n s -> IsSucc xs n s \/ IsSucc ys (n + size xs) s.
+Proof. intro xs; induction xs; intros.
+       - cbn in *. assert (n + 0 = n) by scrush. rewrite H0. now right. 
+       - intros. cbn in H. apply succs_Cons in H.
+         destruct H.
+         left. apply succs_Cons. now left.
+         specialize (IHxs ys (n + 1) s H).
+         destruct IHxs. left.
+         apply succs_Cons. now right.
+         right. unfold size in *.
+         assert (Datatypes.length (a :: xs) = (1 + Datatypes.length xs)%nat) by scrush.
+         rewrite H1. pose helper; scrush.
+Qed.
+
+Lemma succs_append_r: forall xs ys n s, IsSucc xs n s \/ IsSucc ys (n + size xs) s -> IsSucc (xs ++ ys) n s.
+Proof. intro xs; induction xs; intros.
+       - cbn in *. assert (n + 0 = n) by scrush. rewrite H0 in *.
+         destruct H.
+         unfold IsSucc in *. destruct H.
+         destruct H, H1. cbn in *. contradict H. omega.
+         easy.
+       - destruct H. apply succs_Cons in H.
+         cbn. apply succs_Cons. destruct H.
+         now left. right. apply IHxs. now left.
+         cbn. apply succs_Cons. right. apply IHxs.
+         right. unfold size in *.
+         assert (Datatypes.length (a :: xs) = (1 + Datatypes.length xs)%nat) by scrush.
+         rewrite H0 in H. pose helper; scrush.
+Qed.
+
+Lemma succs_append: forall xs ys n s, IsSucc (xs ++ ys) n s <-> IsSucc xs n s \/ IsSucc ys (n + size xs) s.
+Proof. pose succs_append_l; pose succs_append_r; scrush. Qed.
+
+Lemma list_In: forall l x y, x <> y -> List.In x l -> List.In x (List.remove Z.eq_dec y l).
+Proof. intro l. induction l; intros.
+       cbn in *. easy.
+       cbn in *.
+       case_eq (Z.eq_dec y a); intros.
+       destruct H0. subst. contradiction.
+       apply IHl. easy. easy.
+       cbn in *. destruct H0.
+       now left.
+       right. now apply IHl.
+Qed.
+
+Lemma list_In2: forall l x y, List.In x (List.remove Z.eq_dec y l) -> (x <> y /\ List.In x l).
+Proof. intro l. induction l; intros.
+       cbn in *. easy.
+       cbn in *.
+       case_eq (Z.eq_dec y a); intros.
+       rewrite H0 in *. split. scrush.
+       right. eapply IHl. scrush.
+       split. rewrite H0 in *. scrush.
+       rewrite H0 in *. cbn in H.
+       destruct H. now left.
+       right. eapply IHl. scrush.
+Qed.
+
+Lemma exits_single_l: forall x s, IsExit [x] s -> List.In s (List.remove Z.eq_dec 0 (isuccs x 0)).
+Proof. unfold IsExit, IsSucc. intros.
+       destruct H, H, H, H1. cbn in *.
+       assert (x0 = 0). omega.
+       subst. cbn in *.
+       assert (s <> 0). omega.
+       pose list_In; scrush.
+Qed.
+
+Lemma exits_single_r: forall x s, List.In s (List.remove Z.eq_dec 0 (isuccs x 0)) -> IsExit [x] s.
+Proof. unfold IsExit, IsSucc. intros.
+       split. exists 0. split. easy.
+       split. easy. cbn in *.
+       scrush. cbn.
+       apply list_In2 in H. omega.
+Qed.
+
+Lemma exits_single: forall x s, IsExit [x] s <-> List.In s (List.remove Z.eq_dec 0 (isuccs x 0)).
+Proof. pose exits_single_l; pose exits_single_r; scrush. Qed.
+
+Definition op n := forall xs i s, IsSucc xs n s -> IsSucc xs (i + n) s.
+
+Lemma succs_set_shift: forall xs i s, op 0 -> IsSucc xs 0 s -> IsSucc xs i s.
+Proof. intros. unfold op in *. specialize (H xs i s H0). scrush. Qed.
+
+(** exits_append  and exists_cons remaining *)
+
+Lemma exits_empty: forall s, IsExit [] s <-> List.In s [].
+Proof. split; intros. unfold IsExit in H.
+       destruct H. cbn in *. destruct H, H, H1. cbn in *.
+       contradict H. omega.
+       unfold IsExit. split. unfold IsSucc.
+       exists 0. split. easy. split. easy. cbn. left.
+       unfold In in *. easy.
+       cbn in *. easy.
+Qed.
+
+(** exits_simps remaining *)
+
+
+
 End BP_term_succs.
+Lis
