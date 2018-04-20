@@ -514,3 +514,193 @@ Proof.
                         (@Coq.Lists.List.not_in_cons, @Coq.ZArith.BinInt.Zplus_assoc_reverse)
                         (@Coq.ZArith.BinIntDef.Z.succ).
 Qed.
+
+Lemma acomp_size : forall a, 1 <= size (acomp a).
+Proof.
+  induction a; sauto.
+  repeat rewrite lem_size_app.
+  assert (size [ADD] = 1) by scrush.
+  omega.
+Qed.
+
+Lemma acomp_exits : forall a s, IsExit (acomp a) s <-> s = size (acomp a).
+Proof.
+  unfold IsExit; intros a s; split; intro H.
+  - Reconstr.hcrush (@H)
+                    (acomp_succs, @Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.BinInt.Z.nle_gt,
+                     @Coq.ZArith.BinInt.Z.gt_lt_iff, @Coq.ZArith.BinInt.Z.lt_eq_cases,
+                     @Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.BinInt.Z.add_0_r,
+                     @Coq.ZArith.BinInt.Z.le_exists_sub, @Coq.ZArith.Zorder.Zle_0_nat,
+                     @Coq.ZArith.BinInt.Z.one_succ)
+                    (@Coq.ZArith.BinInt.Z.gt, @Coq.ZArith.BinInt.Z.le, @Compiler.size,
+                     @Coq.ZArith.BinIntDef.Z.succ).
+  - Reconstr.hobvious (@H)
+                      (@Coq.ZArith.BinInt.Z.add_0_r, @Coq.ZArith.BinInt.Z.add_comm,
+                       @Coq.ZArith.BinInt.Z.le_refl, @Coq.ZArith.BinInt.Z.nle_gt,
+                       @acomp_size, @acomp_succs, @Coq.ZArith.BinInt.Z.one_succ)
+                      (@Coq.ZArith.BinIntDef.Z.succ).
+Qed.
+
+Lemma bcomp_succs :
+  forall b f i n, 0 <= i -> forall s,
+      IsSucc (bcomp b f i) n s ->
+      n <= s <= n + size (bcomp b f i) \/ s = n + i + size (bcomp b f i).
+Proof.
+  induction b; sauto.
+  - Reconstr.hblast (@H3, @H0)
+                    (@Coq.ZArith.BinInt.Z.add_succ_l, @Coq.ZArith.BinInt.Z.le_antisymm, @Coq.ZArith.BinInt.Z.add_0_l, @Coq.ZArith.Zcompare.Zcompare_Gt_not_Lt, @Coq.ZArith.BinInt.Z.add_0_r)
+                  (@Coq.ZArith.BinInt.Z.le, @Coq.ZArith.BinIntDef.Z.succ).
+  - Reconstr.hblast (@H0, @H3, @Heqn0)
+                  (@Coq.ZArith.BinInt.Z.le_antisymm, @Coq.ZArith.BinInt.Z.add_0_l, @Coq.ZArith.Zcompare.Zcompare_Gt_not_Lt, @Coq.ZArith.Znat.Z2Nat.inj_0)
+                  (@Coq.ZArith.BinInt.Z.le).
+  - assert (x = 0) by
+        Reconstr.hblast (@H0, @H3)
+                        (@Coq.ZArith.BinInt.Z.compare_eq_iff, @Coq.ZArith.BinInt.Z.compare_lt_iff, @Coq.ZArith.BinInt.Z.compare_nge_iff, @Coq.ZArith.BinInt.Z.le_succ_l, @Coq.ZArith.BinInt.Z.one_succ)
+                        (@Coq.ZArith.BinInt.Z.le, @Coq.ZArith.BinIntDef.Z.min).
+    scrush.
+  - Reconstr.hobvious (@H0, @H3)
+                      (@Coq.ZArith.BinInt.Z.ge_le_iff)
+                      (@Coq.ZArith.BinInt.Z.ge).
+  - Reconstr.hobvious (@H3, @H0)
+                      (@Coq.ZArith.BinInt.Z.lt_nge)
+                      (@Coq.ZArith.BinInt.Z.lt).
+  - assert (IsSucc (bcomp b1 false (size (bcomp b2 true i)) ++ bcomp b2 true i) n s) by
+        (unfold IsSucc; scrush).
+    assert (H3: IsSucc (bcomp b1 false (size (bcomp b2 true i))) n s \/
+            IsSucc (bcomp b2 true i) (n + size (bcomp b1 false (size (bcomp b2 true i)))) s) by
+        (pose succs_append_l; scrush).
+    repeat rewrite lem_size_app.
+    destruct H3.
+    + clear -H3 IHb1.
+      assert (H: 0 <= size (bcomp b2 true i)) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      specialize (IHb1 false (size (bcomp b2 true i)) n H s H3).
+      assert (0 <= size (bcomp b1 false (size (bcomp b2 true i)))) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      omega.
+    + clear -H H3 IHb2.
+      specialize (IHb2 true i (n + size (bcomp b1 false (size (bcomp b2 true i)))) H s H3).
+      assert (0 <= size (bcomp b1 false (size (bcomp b2 true i)))) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      omega.
+  - assert (IsSucc (bcomp b1 false (size (bcomp b2 false i) + i) ++ bcomp b2 false i) n s) by
+        (unfold IsSucc; scrush).
+    assert (H3: IsSucc (bcomp b1 false (size (bcomp b2 false i) + i)) n s \/
+            IsSucc (bcomp b2 false i) (n + size (bcomp b1 false (size (bcomp b2 false i) + i))) s) by
+        (pose succs_append_l; scrush).
+    repeat rewrite lem_size_app.
+    destruct H3.
+    + clear -H H3 IHb1.
+      assert (H0: 0 <= size (bcomp b2 false i)) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      assert (H1: 0 <= size (bcomp b2 false i) + i) by omega.
+      specialize (IHb1 false (size (bcomp b2 false i) + i) n H1 s H3).
+      assert (0 <= size (bcomp b1 false (size (bcomp b2 false i) + i))) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      omega.
+    + clear -H H3 IHb2.
+      specialize (IHb2 false i (n + size (bcomp b1 false (size (bcomp b2 false i) + i))) H s H3).
+      assert (0 <= size (bcomp b1 false (size (bcomp b2 false i) + i))) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      omega.
+  - assert (IsSucc (acomp a ++ acomp a0 ++ [JMPLESS i]) n s) by (unfold IsSucc; scrush).
+    assert (H3: IsSucc (acomp a) n s \/ IsSucc (acomp a0 ++ [JMPLESS i]) (n + size (acomp a)) s) by
+        (pose succs_append_l; scrush).
+    repeat rewrite lem_size_app.
+    destruct H3.
+    + assert (n + 1 <= s <= n + size (acomp a)) by (apply acomp_succs; scrush).
+      assert (0 <= size (acomp a0)) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      assert (0 <= size [JMPLESS i]) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      omega.
+    + assert (HH: IsSucc (acomp a0) (n + size (acomp a)) s \/
+                  IsSucc [JMPLESS i] (n + size (acomp a) + size (acomp a0)) s) by
+          (pose succs_append_l; scrush).
+      destruct HH.
+      * assert (n + size (acomp a) + 1 <= s <= n + size (acomp a) + size (acomp a0)) by
+            (apply acomp_succs; scrush).
+        assert (0 <= size (acomp a)) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        assert (0 <= size [JMPLESS i]) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        omega.
+      * assert (H6: s = n + size (acomp a) + size (acomp a0) + 1 + i \/
+                    s = n + size (acomp a) + size (acomp a0) + 1) by (apply succs_simps; scrush).
+        assert (HH: size [JMPLESS i] = 1) by scrush.
+        repeat rewrite HH; clear HH.
+        assert (0 <= size (acomp a)) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        assert (0 <= size (acomp a0)) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        omega.
+  - assert (IsSucc (acomp a ++ acomp a0 ++ [JMPGE i]) n s) by (unfold IsSucc; scrush).
+    assert (H3: IsSucc (acomp a) n s \/ IsSucc (acomp a0 ++ [JMPGE i]) (n + size (acomp a)) s) by
+        (pose succs_append_l; scrush).
+    repeat rewrite lem_size_app.
+    destruct H3.
+    + assert (n + 1 <= s <= n + size (acomp a)) by (apply acomp_succs; scrush).
+      assert (0 <= size (acomp a0)) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      assert (0 <= size [JMPGE i]) by
+          Reconstr.htrivial Reconstr.Empty
+                            (@Coq.ZArith.Zorder.Zle_0_nat)
+                            (@Compiler.size).
+      omega.
+    + assert (HH: IsSucc (acomp a0) (n + size (acomp a)) s \/
+                  IsSucc [JMPGE i] (n + size (acomp a) + size (acomp a0)) s) by
+          (pose succs_append_l; scrush).
+      destruct HH.
+      * assert (n + size (acomp a) + 1 <= s <= n + size (acomp a) + size (acomp a0)) by
+            (apply acomp_succs; scrush).
+        assert (0 <= size (acomp a)) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        assert (0 <= size [JMPGE i]) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        omega.
+      * assert (H6: s = n + size (acomp a) + size (acomp a0) + 1 + i \/
+                    s = n + size (acomp a) + size (acomp a0) + 1) by
+            (pose succs_simps; simp_hyps; yelles 1%nat).
+        assert (HH: size [JMPGE i] = 1) by scrush.
+        repeat rewrite HH; clear HH.
+        assert (0 <= size (acomp a)) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        assert (0 <= size (acomp a0)) by
+            Reconstr.htrivial Reconstr.Empty
+                              (@Coq.ZArith.Zorder.Zle_0_nat)
+                              (@Compiler.size).
+        omega.
+Qed.
+
