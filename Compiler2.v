@@ -704,3 +704,189 @@ Proof.
         omega.
 Qed.
 
+Lemma bcomp_exits:
+  forall b f i, 0 <= i -> forall s,
+      IsExit (bcomp b f i) s ->
+      s = size (bcomp b f i) \/ s <= i + size (bcomp b f i).
+Proof. unfold IsExit; intros;
+       destruct H0; apply bcomp_succs in H0; destruct H0; cbn in *.
+       - left; destruct H0; omega.
+       - right; omega.
+       - omega.
+Qed.
+
+Lemma bcomp_existsD: 
+  forall b f i, 0 <= i -> forall s, exists s',
+      IsExit (bcomp b f i) s ->
+      s' = size (bcomp b f i) \/ s' <= i + size (bcomp b f i).
+Proof. intros; exists s; apply bcomp_exits; easy. Qed.
+
+Lemma size_app: forall l m, size (l ++ m) = size l + size m.
+Proof. unfold size; intros.
+       rewrite app_length.
+       Reconstr.htrivial Reconstr.Empty
+		    (@Coq.ZArith.Znat.Nat2Z.inj_add)
+		    Reconstr.Empty.
+Qed.
+
+Lemma ccomp_size: forall c, size (ccomp c) >= 0.
+Proof. intro c; case_eq (ccomp c); intros;
+       unfold size; simpl; easy.
+Qed.
+
+Lemma list_size: forall l, size l >= 0.
+Proof. intro l; case_eq l; intros;
+       unfold size; simpl; easy.
+Qed.
+
+Lemma ccomp_succs: 
+  forall c i n, 0 <= i -> forall s,
+      IsSucc (ccomp c) n s -> n <= s <= n + size (ccomp c).
+Proof. intro c; induction c; intros.
+       - cbn in *; pose (succs_empty n s); easy.
+       - cbn in *. specialize (succs_append (acomp a) [STORE v] n s); intros.
+         apply H1 in H0. destruct H0.
+         apply acomp_succs in H0.
+         assert (size (acomp a ++ [STORE v]) = size (acomp a) + 1).
+         unfold size. cbn. rewrite app_length. cbn.
+         rewrite Nat2Z.inj_add. easy.
+         rewrite H2. omega.
+         unfold IsSucc in *. destruct H0, H0, H2.
+         assert (x = 0). unfold size in H2. cbn in H2. 
+         Reconstr.htrivial (@H0, @H2)
+		      (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.BinInt.Z.le_antisymm, 
+		       @Coq.ZArith.BinInt.Z.one_succ)
+		       Reconstr.Empty.
+		     rewrite H4 in *. cbn in *.
+		     destruct H3. subst. split.
+         assert (size (acomp a) >= 0) by apply list_size.
+         omega.
+         rewrite size_app. cbn. omega.
+		     easy.
+		   - cbn in *.
+		     specialize (succs_append (ccomp c1) (ccomp c2) n s); intros.
+         apply H1 in H0. destruct H0.
+         specialize (IHc1 i n H s H0).
+         case_eq (ccomp c2); intros; subst.
+         assert (ccomp c1 ++ [] = ccomp c1) by scrush.
+         rewrite H3. easy.
+         cbn in *. unfold size. rewrite app_length. cbn.
+         unfold size in IHc1.
+         split. omega.
+         assert (Z.of_nat (Datatypes.length (ccomp c1) + S (Datatypes.length l)) = 
+         Z.of_nat (Datatypes.length (ccomp c1) + (Datatypes.length l) + 1)).
+         f_equal. omega.
+         rewrite H3.
+         rewrite !Nat2Z.inj_add. omega.
+         specialize (IHc2 i (n + size (ccomp c1)) H s H0).
+         rewrite size_app. split. pose acomp_size.
+         destruct IHc2. 
+         specialize (ccomp_size c1); intros.
+         omega. omega.
+       - cbn in *.
+         apply succs_append in H0.
+         destruct H0.
+         apply bcomp_succs in H0.
+         destruct H0.
+         rewrite !size_app. cbn.
+         split. omega.
+         destruct H0.
+         specialize (ccomp_size c1); intros.
+         specialize (ccomp_size c2); intros.
+         rewrite !Z.add_assoc.
+         assert ( Z.pos (Pos.of_succ_nat (Datatypes.length (ccomp c2))) >= 0) by scrush.
+         omega.
+         subst. cbn.
+         split.
+         rewrite Z.add_assoc.
+         specialize (ccomp_size c1); intros.
+         assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0).
+         apply list_size. omega.
+         rewrite !size_app. unfold size.
+         cbn. rewrite !Z.add_assoc. 
+         rewrite Zpos_P_of_succ_nat. omega.
+         remember (ccomp_size c1); intros.
+         omega.
+         apply succs_append in H0.
+         destruct H0.
+         specialize (IHc1 i (n + size (bcomp b false (size (ccomp c1) + 1))) H s H0).
+         split. destruct IHc1.
+         assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0).
+         apply list_size. omega.
+         rewrite !size_app, !Z.add_assoc. cbn.
+         rewrite Zpos_P_of_succ_nat. omega.
+         apply succs_Cons in H0.
+         destruct H0. cbn in *.
+         destruct H0. subst.
+         split.
+         assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0) by apply list_size.
+         assert (size (ccomp c1) >= 0) by apply list_size.
+         assert (size (ccomp c2) >= 0) by apply list_size.
+         omega.
+         rewrite !size_app, !Z.add_assoc. cbn.
+         rewrite Zpos_P_of_succ_nat.
+         unfold size in *. omega.
+         easy.
+         specialize (IHc2 i (n + size (bcomp b false (size (ccomp c1) + 1)) + size (ccomp c1) + 1) H s H0).
+         destruct IHc2. split.
+         assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0) by apply list_size.
+         assert (size (ccomp c1) >= 0) by apply list_size.
+         assert (size (ccomp c2) >= 0) by apply list_size.
+         omega.
+         rewrite !size_app, !Z.add_assoc. cbn.
+         rewrite Zpos_P_of_succ_nat.
+         unfold size in *. omega.
+       - cbn in *.
+         apply succs_append in H0.
+         destruct H0.
+         apply bcomp_succs in H0.
+         destruct H0.
+         assert (Datatypes.length [JMP (- (size (bcomp b false (size (ccomp c) + 1)) + size (ccomp c) + 1))] = 1%nat).
+         easy.
+         split.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
+         omega.
+         rewrite !size_app, !Z.add_assoc. cbn.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
+         assert (size (ccomp c) >= 0) by apply list_size.
+         omega.
+         subst.
+         split.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
+         assert (size (ccomp c) >= 0) by apply list_size.
+         omega.
+         rewrite !size_app, !Z.add_assoc. cbn. omega.
+         unfold size. omega.
+         apply succs_append in H0.
+         destruct H0.
+         specialize (IHc i  (n + size (bcomp b false (size (ccomp c) + 1))) H s H0).
+         split.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
+         omega.
+         rewrite !size_app, !Z.add_assoc. cbn. omega.
+         unfold IsSucc in H0. destruct H0, H0, H1.
+         assert (size [JMP (- (size (bcomp b false (size (ccomp c) + 1)) + size (ccomp c) + 1))] = 1).
+         easy. rewrite H3 in H1.
+         assert (x = 0) by omega. subst.
+         cbn in *.
+         destruct H2.
+         split. subst. omega.
+         rewrite !size_app. cbn. subst. 
+         rewrite !Z.add_assoc.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
+         assert (size (ccomp c) >= 0) by apply list_size.
+         omega.
+         easy.
+Qed.
+
+Lemma ccomp_exits: 
+  forall c i, 0 <= i -> forall s,
+      IsExit (ccomp c) s ->  s = size (ccomp c).
+Proof. intros. unfold IsExit in H0. 
+       destruct H0. apply (ccomp_succs c i) in H0.
+       cbn in *. 
+       unfold Logic.not in H1.
+       omega. omega.
+Qed.
+
+
