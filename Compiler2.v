@@ -889,4 +889,106 @@ Proof. intros. unfold IsExit in H0.
        omega. omega.
 Qed.
 
+Lemma lem_znth_app_r :
+  forall xs ys i x, i >= 0 -> i < size xs -> znth i (xs ++ ys) x = znth i xs x.
+Proof.
+  intro xs. induction xs; intros.
+  - cbn in *. omega.
+  - rewrite lem_nth_append.
+	   Reconstr.hcrush (@H0)
+		  (@Compiler.lem_size_succ, @Coq.Bool.Bool.diff_true_false, @Coq.ZArith.Zbool.Zlt_is_lt_bool)
+		  (@Compiler.znth, @Coq.ZArith.BinIntDef.Z.succ).
+		omega.
+Qed.
+
+Lemma exec1_split i j: forall P c P' s s' stk stk',
+  exec1 (P ++ c ++ P') (size P + i, s, stk) (j, s', stk') ->
+  0 <= i -> i < size c -> exec1 c (i, s, stk) (j - size P, s', stk').
+Proof. intros. apply lem_exec1I.
+       unfold exec1 in *. destruct H, H, H, H, H2.
+       inversion H.
+       subst. assert (i >= 0) by omega.
+       specialize (lem_znth_app P (c ++ P') i ADD H4); intros.
+       rewrite H5 in H2.
+       assert (znth i (c ++ P') ADD = znth i c ADD).
+       { now rewrite lem_znth_app_r. }
+       rewrite H6 in H2.
+       specialize (lem_iexec_shift (znth i c ADD) (size P) i 
+                                   (j - (size P)) x0 s' x1 stk'); intros.
+       assert (size P + (j - size P) = j) by omega.
+       rewrite H8 in *.
+       now apply H7 in H2.
+       omega. omega.
+Qed.
+
+Lemma exec_n_split: 
+forall (n: nat) P c P' i j s s' stk stk',
+  0 <= i -> i < size c ->
+  exec_n (P ++ c ++ P') (size P + i, s, stk) n (j, s', stk') ->
+  (j < size P \/ j > size P + size c) ->
+  exists s'', exists i', exists k, exists m,
+    exec_n c (i, s, stk) k (i', s'', stk') /\ IsExit c i' /\
+    exec_n (P ++ c ++ P') (size P + i', s'', stk) m (j, s', stk') /\
+    n%nat = (k + m)%nat.
+Proof. intro n. induction n; intros; cbn in *.
+       - exists s. exists i. exists O. exists O.
+         split. now inversion H1.
+         split. unfold IsExit. split.
+         unfold IsSucc. inversion H1. subst.
+         destruct H2.
+         assert (size P + i < size P -> False) by omega.
+         omega.
+         assert (size P + i > size P + size c -> False) by omega.
+         omega.
+         inversion H1. subst.
+         destruct H2.
+         assert (size P + i < size P -> False) by omega.
+         omega.
+         assert (size P + i > size P + size c -> False) by omega.
+         omega.
+         split; easy.
+       - admit.
+Admitted.
+
+Lemma exec_n_drop_right:
+  forall (n: nat) (i j: Z) (P c P': list instr) s s' stk stk',
+  exec_n (c ++ P') (0, s, stk) n (j, s', stk') ->
+  (j < 0 \/ j > size c) ->
+  (
+  (exists s'', exists i', exists k, s'' = s /\ i' = 0 /\ k = O)
+  \/
+  (exists s'', exists i', exists k, exists m,
+  (exec_n c (0, s, stk) k (i', s'', stk') /\
+   IsExit c i' /\
+   exec_n (c ++ P') (i', s'', stk) m (j, s', stk') /\
+   n%nat = (k  + m)%nat))).
+Proof. intros. case_eq c; intros.
+       left. exists s. exists 0. exists O.
+       split; easy.
+       right.
+       specialize (exec_n_split n [] c P' 0); intros.
+       cbn in *. subst.
+       eapply H2; easy.
+Qed.
+
+Lemma exec1_drop_left:
+  forall n i P1 P2 s s' stk stk',
+  exec1 (P1 ++ P2) (i, s, stk) (n, s', stk') ->
+  size P1 <= i ->
+  exec1 P2 (i - size P1, s, stk) (n - size P1, s', stk').
+Proof. intros.
+       specialize (exec1_split (i - size P1) n P1 P2 []); intros.
+       apply H1. assert (P1 ++ P2 ++ [] = P1 ++ P2) by scrush.
+       rewrite H2.
+       assert (size P1 + (i - size P1) = i) by omega.
+       rewrite H3. easy.
+       omega.
+       unfold exec1 in H.
+       destruct H, H, H, H, H2.
+       inversion H. destruct H3. 
+       rewrite size_app in H4.
+       omega.
+Qed.
+
+
 
