@@ -985,22 +985,69 @@ Proof. intros n. induction n; intros; cbn in *.
          rewrite H8. cbn. easy. omega.
 Qed.
 
+Definition ascii_eqb (a b: Ascii.ascii) :=
+  match a, b with
+    | Ascii.Ascii a1 a2 a3 a4 a5 a6 a7 a8, Ascii.Ascii b1 b2 b3 b4 b5 b6 b7 b8 =>
+      Bool.eqb a1 b1 && 
+      Bool.eqb a2 b2 &&
+      Bool.eqb a3 b3 &&
+      Bool.eqb a4 b4 &&
+      Bool.eqb a5 b5 &&
+      Bool.eqb a6 b6 &&
+      Bool.eqb a7 b7 &&
+      Bool.eqb a8 b8
+  end.
+
+Lemma ascii_eqb_refl: forall a, ascii_eqb a a = true.
+Proof. intros.
+       induction a; intros.
+       simpl.
+       now repeat rewrite eqb_reflx.
+Qed.
+
+Fixpoint string_eqb (x y: string) :=
+  match x, y with
+    | ""%string, ""%string => true
+    | String a s1, String b s2 => 
+      if ascii_eqb a b then
+      string_eqb s1 s2 else false 
+     | _, _ => false
+   end.
+ 
+
+Fixpoint instr_eqb (i1 i2: instr): bool :=
+  match i1, i2 with
+    | JMP i, JMP j         => Z.eqb i j
+    | LOAD x, LOAD y       => string_eqb x y
+    | LOADI i, LOADI j     => Z.eqb i j
+    | ADD, ADD             => true
+    | STORE x, STORE y     => string_eqb x y
+    | JMPLESS i, JMPLESS j => Z.eqb i j
+    | JMPGE i, JMPGE j     => Z.eqb i j
+    | _, _                 => false
+  end.
+
+Fixpoint list_instr_eqb l m :=
+  match l, m with
+    | [], [] => true
+    | x :: xs, y :: ys => if instr_eqb x y then list_instr_eqb xs ys else false
+    | _, _ => false
+  end.
+
 Lemma exec_n_drop_right:
   forall (n: nat) (i j: Z) (P c P': list instr) s s',
   exec_n (c ++ P') (0, fst s, snd s) n (j, fst s', snd s') ->
   (j < 0 \/ j >= size c) ->
-  (
-  (exists s'', exists i', exists k, s'' = s /\ i' = 0 /\ k = O)
-  \/
-  (exists s'', exists i', exists k, exists m,
-  (exec_n c (0, fst s, snd s) k (i', fst s'', snd s'') /\
+  exists s'', exists i', exists k, exists m,
+  if list_instr_eqb c [] then s'' = s /\ i' = 0 /\ k = O
+  else
+   exec_n c (0, fst s, snd s) k (i', fst s'', snd s'') /\
    IsExit c i' /\
    exec_n (c ++ P') (i', fst s'', snd s'') m (j, fst s', snd s') /\
-   n%nat = (k  + m)%nat))).
+   n%nat = (k  + m)%nat.
 Proof. intros. case_eq c; intros.
-       left. exists s. exists 0. exists O.
+       exists s. exists 0. exists O. exists O.
        split; easy.
-       right.
        specialize (exec_n_split n [] c P' 0); intros.
        cbn in *. subst.
        specialize (H2 j s s').
@@ -1139,7 +1186,8 @@ Proof. induction a; sauto;
          destruct H, H, H0, x, p;
          eapply exec_n_end in H0; scrush;
          scrush).
-        - apply exec_n_split_full in H3.
+		    - apply exec_n_split_full in H3.
+
           destruct H3, H3, H3, H3, H3.
           apply exec_n_split_full in H4.
           destruct H4, H4, H4, H4, H4. 
@@ -1181,28 +1229,213 @@ Proof. induction a; sauto;
 		        (@acomp_exits)
 		        (@IsSucc, @IsExit).
 
-          assert (forall r, IsExit [ADD] r -> r >= 0).
-          intros. sauto;
+		      intros.
+		      unfold IsExit in *.
+		      assert (0 > r \/ r >= size (acomp a2 ++ [ADD])). omega.
+		      destruct H4, H5.
+		      apply succs_append in H4. cbn in *.
+		      destruct H4. apply acomp_succs in H4.
+		       omega.
+		      unfold IsSucc in H4.
+		      destruct H4, H4, H7.
+		      assert (x = 0) by (cbn in *; omega).
+		      rewrite H9 in *. cbn in *.
+		      destruct H8.
+		      rewrite  <- H8 in H5.
+		      assert (size (acomp a2) >= 0) by apply list_size.
+		      omega. easy. rewrite size_app in H5.
+		      assert (size (acomp a2) >= 0) by apply list_size.
+		      assert (size [ADD] = 1) by scrush.
+		      omega.
 
-	          Reconstr.hsimple (@H4)
-		          (@Coq.ZArith.Zcompare.Zcompare_Gt_not_Lt, @Coq.ZArith.Zcompare.Zcompare_Gt_Lt_antisym)
-		          (@Coq.ZArith.BinInt.Z.ge, @Coq.ZArith.BinInt.Z.le).
-
-          intros. apply H4. 
-          unfold IsExit in *. split. Focus 2.
-          destruct H5. unfold Logic.not in *. intros.
-          apply H6. split. omega. 
-          rewrite size_app.
+		    - apply exec_n_split_full in H3.
+          destruct H3, H3, H3, H3, H3.
+          apply exec_n_split_full in H4.
+          destruct H4, H4, H4, H4, H4. 
+          rewrite !size_app, Z.add_comm in H5.
+          assert (size (acomp a2) + size [ADD] + size (acomp a1) 
+          - size (acomp a1) - size (acomp a2) = size [ADD]).
+	        Reconstr.htrivial Reconstr.Empty
+		        (@Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Z.add_simpl_l)
+		        (@Coq.ZArith.BinIntDef.Z.sub, @Compiler.size).
+          rewrite H6 in H5.
+          assert (size [ADD] = 1) by scrush.
+          rewrite H7 in *.
+          apply exec_n_step in H5; try easy.
+          destruct H5, H5, H8, x7, p.
+          eapply exec_n_end in H8; scrush.
+          rewrite !size_app, Z.add_comm.
+          assert (size (acomp a2) + size [ADD] + size (acomp a1) - size (acomp a1) =
+                  size (acomp a2) + size [ADD]) by omega.
+          rewrite H5.
+          assert (size [ADD] = 1) by scrush. omega.
+          unfold closed. intros.
+          unfold IsExit, IsSucc in H5.
+          destruct H5, H5, H5, H7.
+	        Reconstr.hobvious (@H6, @H7, @H5, @H8)
+		        (@acomp_exits)
+		        (@IsSucc, @IsExit).
+          intros; sauto;
+          Reconstr.hsimple (@H5)
+            (@Coq.ZArith.Zcompare.Zcompare_Gt_not_Lt, @Coq.ZArith.Zcompare.Zcompare_Gt_Lt_antisym)
+            (@Coq.ZArith.BinInt.Z.ge, @Coq.ZArith.BinInt.Z.le).
+          rewrite !size_app, Z.add_comm.
+          assert (size [ADD] = 1) by scrush.
           assert (size (acomp a2) >= 0) by apply list_size.
           omega.
+          unfold closed. intros.
+          unfold IsExit, IsSucc in H4.
+          destruct H4, H4, H4, H6.
+	        Reconstr.hobvious (@H5, @H6, @H4, @H7)
+		        (@acomp_exits)
+		        (@IsSucc, @IsExit).
 
-          admit.
+		      intros.
+		      unfold IsExit in *.
+		      assert (0 > r \/ r >= size (acomp a2 ++ [ADD])). omega.
+		      destruct H4, H5.
+		      apply succs_append in H4. cbn in *.
+		      destruct H4. apply acomp_succs in H4.
+		       omega.
+		      unfold IsSucc in H4.
+		      destruct H4, H4, H7.
+		      assert (x = 0) by (cbn in *; omega).
+		      rewrite H9 in *. cbn in *.
+		      destruct H8.
+		      rewrite  <- H8 in H5.
+		      assert (size (acomp a2) >= 0) by apply list_size.
+		      omega. easy. rewrite size_app in H5.
+		      assert (size (acomp a2) >= 0) by apply list_size.
+		      assert (size [ADD] = 1) by scrush.
+		      omega.
+Qed.
+
+Lemma bcomp_split:
+  forall n i j b f P' s s' stk stk',
+  exec_n (bcomp b f i ++ P') (0, s, stk) n (j, s', stk') ->
+  (j < 0 \/ j >= size (bcomp b f i)) -> 
+  0 <= i ->
+  exists s'', exists stk'', exists i', exists k, exists m,
+    exec_n (bcomp b f i) (0, s, stk) k (i', s'', stk'') /\
+    (i' = size (bcomp b f i) \/ i' = i + size (bcomp b f i)) /\
+    exec_n (bcomp b f i ++ P') (i', s'', stk'') m (j, s', stk') /\
+    n%nat = (k + m)%nat.
+Proof. intros; case_eq (bcomp b f i); intros; rewrite H2 in *;
+       try (exists s; exists stk; exists 0; exists O; exists n; scrush).
+       pose proof H as Ha.
+       specialize (exec_n_drop_right n i j [] (i0 :: l) P' (s, stk) (s', stk')); intros.
+       unfold fst, snd in H3. specialize (H3 H H0).
+       destruct H3, H3, H3, H3, x. cbn in H3.
+       exists s0. exists s1. exists x0. exists x1. exists x2.
+       split. easy. split.
+       destruct H3, H4.
+       rewrite <- H2 in *.
+
+       unfold IsExit in H4. destruct H4.
+       apply bcomp_succs in H4; try easy.
+       destruct H4.
+       assert (0 > x0 \/ x0 >= size (bcomp b f i)) by omega.
+       destruct H7.
+       omega. omega. right. omega.
+       cbn. easy.
+Qed.
+
+Lemma bcomp_exec_n:
+  forall b n i j f s s' stk stk',
+  exec_n (bcomp b f j) (0, s, stk) n (i, s', stk') ->
+  size (bcomp b f j) <= i -> 0 <= j ->
+  i = size(bcomp b f j) + (if Bool.eqb (bval s b) f then j else 0) /\
+  s' = s /\ stk' = stk.
+Proof. intro b; induction b; intros.
+       - cbn in *.
+         case_eq (eqb b f); intros; rewrite H2 in *.
+         pose proof H as Ha.
+         apply exec_n_step in H; try easy.
+         destruct H, H, H3, x, p.
+         eapply exec_n_end in H3; scrush.
+         cbn in *. omega.
+         eapply exec_n_end in H; scrush.
+       - specialize (IHb n i j (negb f) s s' stk stk' H H0 H1);
+         split. case_eq (eqb (bval s b) (negb f) ); intros.
+         rewrite H2 in *. cbn.
+         assert (eqb (negb (bval s b)) f = true) by admit.
+         rewrite H3 in *. easy.
+         rewrite H2 in *. cbn.
+         assert (eqb (negb (bval s b)) f = false) by admit.
+         rewrite H3 in *. easy. easy.
+       - case_eq f; intros.
+         rewrite H2 in *.
+         case_eq ((bval s (Band b1 b2))); intros. cbn.
+         + cbn in H3.
+           assert (bval s b1 = true) by scrush.
+           assert (bval s b2 = true) by scrush.
+           cbn in H.
+           apply bcomp_split in H.
+           destruct H, H, H, H, H, H, H6, H7.
+           eapply exec_n_drop_left in H7.
+           destruct H6; rewrite H6 in *.
+           assert (size (bcomp b1 false (size (bcomp b2 true j))) - 
+                   size (bcomp b1 false (size (bcomp b2 true j))) = 0). omega.
+           rewrite H9 in *.
+           specialize (IHb2 x3
+                            (i - size (bcomp b1 false (size (bcomp b2 true j)))) 
+                            j true x s' x0 stk' H7).
+           cbn in H0. rewrite size_app in H0.
+           assert (size (bcomp b2 true j) <= 
+                   i - size (bcomp b1 false (size (bcomp b2 true j)))) by omega.
+           specialize (IHb2 H10 H1).
+           destruct IHb2.
+           specialize (IHb1 x2 
+                            (size (bcomp b1 false (size (bcomp b2 true j))))
+                            (size (bcomp b2 true j)) false s s' stk stk').
+           destruct H12. rewrite H12, H13 in *.
+           specialize (IHb1 H).
+           assert (size (bcomp b1 false (size (bcomp b2 true j))) <= 
+                   size (bcomp b1 false (size (bcomp b2 true j)))) by omega.
+           assert (size (bcomp b2 true j) >= 0) by eapply list_size.
+           assert (0 <= size (bcomp b2 true j)) by omega.
+           specialize (IHb1 H14 H16).
+           destruct IHb1, H18. subst. rewrite H5 in H11.
+           cbn in H11. rewrite size_app. split. omega. easy.
+         
+           assert (size (bcomp b2 true j) + 
+                   size (bcomp b1 false (size (bcomp b2 true j))) -
+                   size (bcomp b1 false (size (bcomp b2 true j))) = 
+                   size (bcomp b2 true j)) by omega.
+           rewrite H9 in *.
+         
+           specialize (IHb1 x2
+           (size (bcomp b2 true j) + size (bcomp b1 false (size (bcomp b2 true j))))
+           (size (bcomp b2 true j)) false s x stk x0 H).
+           assert (size (bcomp b1 false (size (bcomp b2 true j))) <=
+                   size (bcomp b2 true j) + size (bcomp b1 false (size (bcomp b2 true j))))
+                   by admit.
+           assert (0 <= size (bcomp b2 true j)) by admit.
+           specialize (IHb1 H10 H11).
+           destruct IHb1. destruct H13.
+           rewrite H13, H14 in *.
+           rewrite H4 in H12. cbn in H12.
+           assert (size (bcomp b2 true j) = 0) by omega.
+           rewrite H15 in *.
+           specialize (IHb2 x3 (i - size (bcomp b1 false 0)) j true s s' stk stk' H7).
+           cbn in *. rewrite size_app in H0.
+           rewrite H15 in *.
+           assert (0 <= i - size (bcomp b1 false 0)) by omega.
+           specialize (IHb2 H16 H1).
+           destruct IHb2. rewrite H5 in H17. cbn in *.
+           rewrite size_app, H15. split. omega. easy.
+         
+           destruct H6. scrush.
+           assert (size (bcomp b2 true j) >= 0) by apply list_size.
+           omega.
+           admit. (** seems difficult *)
+           right. cbn in *. rewrite size_app in H0.
+           assert (size (bcomp b2 true j) >= 0) by apply list_size.
+           omega.
+           assert (size (bcomp b2 true j) >= 0) by apply list_size.
+           omega.
+         + cbn in *.
 Admitted.
-
-
-
-
-
 
 
 
