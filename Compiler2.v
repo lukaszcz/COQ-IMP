@@ -921,6 +921,8 @@ Proof. intros. apply lem_exec1I.
        omega. omega.
 Qed.
 
+Axiom classic : forall P:Prop, P \/ ~ P.
+
 Lemma exec_n_split: 
 forall (n: nat) P c P' (i j: Z) (s s': state * stack),
   0 <= i -> i < size c ->
@@ -930,7 +932,7 @@ forall (n: nat) P c P' (i j: Z) (s s': state * stack),
     exec_n c (i, fst s, snd s) k (i', fst s'', snd s'') /\ IsExit c i' /\
     exec_n (P ++ c ++ P') (size P + i', fst s'', snd s'') m (j, fst s', snd s') /\
     n%nat = (k + m)%nat.
-Proof. intro n. induction n; intros; cbn in *.
+Proof. intros n. induction n; intros; cbn in *.
        - exists s. exists i. exists O. exists O.
          split. now inversion H1.
          split. unfold IsExit. split.
@@ -947,8 +949,41 @@ Proof. intro n. induction n; intros; cbn in *.
          assert (size P + i > size P + size c -> False) by omega.
          omega.
          split; easy.
-       - admit.
-Admitted.
+       - destruct H1, H1, x, p.
+         pose proof H1 as H1a.
+         pose proof H3 as H3a.
+         apply exec1_split in H1; try easy.
+         destruct (classic (0 <= z - size P < size c)).
+         destruct H4.
+         specialize (IHn P c P' (z - size P) j (s1, s0) s').
+
+         assert (size P + (z - size P) = z) by omega.
+         rewrite H6 in IHn. unfold fst, snd in IHn.
+         specialize (IHn H4 H5 H3 H2).
+         destruct IHn, H7, H7, H7, H7, x, H8, H9, s'.
+         exists (s2, s3). exists x0. exists (S x1). exists x2.
+         split. cbn.
+         exists (z - size P, s1, s0). split. easy.
+         easy.
+         split. easy.
+         split. cbn. easy. omega.
+
+         unfold exec1 in H1. destruct H1, H1, H1, H1, H5.
+         apply succs_iexec1 in H5; try omega. cbn in *.
+         assert (IsExit c (z - size P)).
+         unfold IsExit. split; easy.
+         
+
+         exists (s1, s0). exists (z - size P). exists 1%nat. exists n.
+         split. cbn. inversion H1.
+         apply exec1_split in H1a; try easy.
+         exists ((z - size P, s1, s0)). split.
+         inversion H1. subst. easy. easy.
+         split. easy.
+         split.
+         assert (size P + (z - size P) = z) by omega.
+         rewrite H8. cbn. easy. omega.
+Qed.
 
 Lemma exec_n_drop_right:
   forall (n: nat) (i j: Z) (P c P': list instr) s s',
@@ -1077,7 +1112,7 @@ Proof. intros.
         rewrite H1 in *.
         destruct x. unfold fst, snd in H8.
         assert (i :: l ++ P' = (i :: l) ++ P'). easy.
-        rewrite H10 in H8.       
+        rewrite H10 in H8.
         eapply exec_n_drop_left in H8.
 
         exists x1. exists x2. exists s0. exists s1.
@@ -1109,8 +1144,8 @@ Proof. induction a; sauto;
           apply exec_n_split_full in H4.
           destruct H4, H4, H4, H4, H4. 
           rewrite !size_app, Z.add_comm in H5.
-          assert (size (acomp a2) + size [ADD] + size (acomp a1) - 
-          size (acomp a1) - size (acomp a2) = size [ADD]).
+          assert (size (acomp a2) + size [ADD] + size (acomp a1) 
+          - size (acomp a1) - size (acomp a2) = size [ADD]).
 	        Reconstr.htrivial Reconstr.Empty
 		        (@Coq.ZArith.BinInt.Z.add_simpl_r, @Coq.ZArith.BinInt.Z.add_simpl_l)
 		        (@Coq.ZArith.BinIntDef.Z.sub, @Compiler.size).
