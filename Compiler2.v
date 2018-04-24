@@ -1428,7 +1428,16 @@ Proof. intro b; induction b; intros.
            destruct H6. scrush.
            assert (size (bcomp b2 true j) >= 0) by apply list_size.
            omega.
-           admit. (** seems difficult *)
+           
+           intros. unfold IsExit in *.
+           destruct H9.
+           assert (0 > r \/ r >= size (bcomp b2 true j)) by omega.
+           apply bcomp_succs in H9; try easy.
+           destruct H9.
+           destruct H11. omega. omega.
+           assert (size (bcomp b2 true j) >= 0) by apply list_size.
+           omega.
+
            right. cbn in *. rewrite size_app in H0.
            assert (size (bcomp b2 true j) >= 0) by apply list_size.
            omega.
@@ -1438,7 +1447,17 @@ Proof. intro b; induction b; intros.
 Admitted.
 
 
+Lemma app_nil: forall {A} (l m: list A), l ++ m = [] -> l = [] /\ m = [].
+Proof. scrush. Qed.
 
+Lemma ccomp_empty:
+  forall c s, ccomp c = [] -> Big_Step.big_step (c, s) s.
+Proof. intro c; induction c; intros; cbn; try (pose @app_nil; scrush);
+        cbn in *; apply app_nil in H;
+	       Reconstr.hobvious (@IHc2, @H, @IHc1)
+		       (@Big_Step.SeqSem)
+		       Reconstr.Empty.
+Qed.
 
 
 
