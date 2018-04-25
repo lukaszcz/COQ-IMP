@@ -224,70 +224,74 @@ Proof. split; intros; unfold IsSucc, isuccs.
        destruct H1; left; omega;
        destruct H1; right; left; omega;
        scrush).
-       unfold In in *.
-       destruct H1. left. omega.
-       destruct H1. right. left. omega.
-       scrush.
-       unfold In in *.
-       destruct H1. left. omega.
-       destruct H1. right. left. omega.
-       scrush.
+       unfold In in *;
+	     Reconstr.htrivial (@H1)
+		      (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Zplus_minus)
+		      (@Coq.ZArith.BinIntDef.Z.sub).
+       unfold In in *;
+	     Reconstr.htrivial (@H1)
+		      (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Zplus_minus)
+		      (@Coq.ZArith.BinIntDef.Z.sub).
        unfold IsSucc, isuccs in H. destruct H.
-       exists x. split. easy. split. easy.
+       exists x;
+       split; try easy; split; try easy.
+
        destruct H, H0; cbn in *;
        case_eq (znth x P ADD); intros; rewrite H2 in *; try now apply In_help.
-       unfold In in H1. destruct H1.
-       simpl. left. omega.
-       scrush.
-       unfold In in H1. destruct H1.
-       simpl. left. omega.
-       unfold In in H1. destruct H1.
-       simpl. right. left. omega.
-       scrush.
-       unfold In in H1. destruct H1.
-       simpl. left. omega.
-       destruct H1.
-       simpl. right. left. omega.
-       scrush.
+	     Reconstr.hcrush (@H1)
+		      (@BP_term_succs.In_help, @Coq.ZArith.BinInt.Z.add_succ_r, 
+           @Coq.ZArith.BinInt.Z.add_succ_l, @Coq.ZArith.BinInt.Z.add_comm, 
+           @Coq.ZArith.BinInt.Zplus_assoc_reverse)
+		      (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
+
+       unfold In in H1; destruct H1;
+	     Reconstr.hblast (@H1)
+		      (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_simpl_l)
+		      (@Coq.ZArith.BinIntDef.Z.sub).
+	     Reconstr.hblast (@H1)
+		      (@Coq.ZArith.BinInt.Zplus_assoc_reverse, @Coq.ZArith.BinInt.Z.add_simpl_l)
+		      (@Coq.ZArith.BinIntDef.Z.sub).
 Qed.
 
 Lemma helper: forall y n, n + 1 + Z.of_nat y = n + Z.of_nat (1 + y).
-Proof. intro n; induction n; intros.
-       - cbn. scrush.
-       - specialize (Z.add_cancel_l (1 + Z.of_nat (S n)) (Z.of_nat (1 + S n)) n0); intros.
-         rewrite <- Z.add_assoc.
-         apply H. scrush.
+Proof. intro n; induction n; sauto;
+	     Reconstr.htrivial (@IHn)
+		      (@Coq.ZArith.BinInt.Z.add_succ_comm, @Coq.ZArith.BinInt.Z.opp_0, 
+           @Coq.ZArith.BinInt.Z.add_0_l, @Coq.ZArith.BinInt.Z.opp_add_distr, 
+           @Coq.ZArith.BinInt.Pos2Z.inj_succ)
+		      (@Coq.ZArith.BinIntDef.Z.opp, @Coq.ZArith.BinIntDef.Z.succ); scrush.
 Qed.
 
 Lemma succs_append_l: forall xs ys n s, IsSucc (xs ++ ys) n s -> IsSucc xs n s \/ IsSucc ys (n + size xs) s.
 Proof. intro xs; induction xs; intros.
-       - cbn in *. assert (n + 0 = n) by scrush. rewrite H0. now right.
+       - cbn in *; assert (n + 0 = n) by scrush; scrush.
        - intros. cbn in H. apply succs_Cons in H.
          destruct H.
-         left. apply succs_Cons. now left.
+	       Reconstr.htrivial (@H)
+		        (@BP_term_succs.succs_Cons)
+		        Reconstr.Empty; scrush.
          specialize (IHxs ys (n + 1) s H).
-         destruct IHxs. left.
-         apply succs_Cons. now right.
-         right. unfold size in *.
-         assert (Datatypes.length (a :: xs) = (1 + Datatypes.length xs)%nat) by scrush.
-         rewrite H1. pose helper; scrush.
+	       Reconstr.hblast (@IHxs)
+		        (@Compiler.lem_size_succ, @Coq.ZArith.BinInt.Z.add_succ_l,
+             @Coq.ZArith.BinInt.Z.add_comm, @BP_term_succs.succs_Cons)
+		        (@Coq.ZArith.BinIntDef.Z.succ).
 Qed.
 
 Lemma succs_append_r: forall xs ys n s, IsSucc xs n s \/ IsSucc ys (n + size xs) s -> IsSucc (xs ++ ys) n s.
 Proof. intro xs; induction xs; intros.
-       - cbn in *. assert (n + 0 = n) by scrush. rewrite H0 in *.
-         destruct H.
-         unfold IsSucc in *. destruct H.
-         destruct H, H1. cbn in *. contradict H. omega.
-         easy.
-       - destruct H. apply succs_Cons in H.
-         cbn. apply succs_Cons. destruct H.
-         now left. right. apply IHxs. now left.
-         cbn. apply succs_Cons. right. apply IHxs.
-         right. unfold size in *.
-         assert (Datatypes.length (a :: xs) = (1 + Datatypes.length xs)%nat) by scrush.
-         rewrite H0 in H. pose helper; scrush.
+       - 	Reconstr.hobvious (@H)
+		      (@BP_term_succs.succs_empty, @Coq.ZArith.BinInt.Z.add_0_l, 
+           @Coq.ZArith.BinInt.Z.add_cancel_r, @Coq.Lists.List.app_nil_l, 
+           @Compiler.lem_size_app, @Coq.ZArith.BinInt.Zplus_0_r_reverse)
+		      Reconstr.Empty.
+       - destruct H. apply succs_Cons in H;
+         cbn; apply succs_Cons; destruct H; scrush.
+         cbn; apply succs_Cons; right; apply IHxs; unfold size;
+	       Reconstr.hblast (@H)
+		        (@Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.BinInt.Z.add_succ_l, @Compiler.lem_size_succ)
+		        (@Coq.ZArith.BinIntDef.Z.succ, @Compiler.size).
 Qed.
+
 
 Lemma succs_append: forall xs ys n s, IsSucc (xs ++ ys) n s <-> IsSucc xs n s \/ IsSucc ys (n + size xs) s.
 Proof. pose succs_append_l; pose succs_append_r; scrush. Qed.
@@ -301,8 +305,9 @@ Proof.
                       (@Coq.ZArith.BinInt.Z.add_simpl_r)
                       (@Coq.ZArith.BinIntDef.Z.sub).
   - assert (HH: s = (s + i) - i) by omega.
-    rewrite HH; clear HH.
-    pose succs_shift; scrush.
+	  Reconstr.hobvious (@H, @HH)
+	  	(@BP_term_succs.succs_shift)
+		  Reconstr.Empty.
 Qed.
 
 Lemma exits_append : forall xs ys s,
@@ -353,11 +358,16 @@ Proof. unfold IsExit, IsSucc.
 Qed.
 
 Lemma exits_single_r: forall x s, List.In s (isuccs x 0) /\ s <> 0 -> IsExit [x] s.
-Proof. unfold IsExit, IsSucc. intros.
-       split. exists 0. split. easy.
-       split. easy. cbn in *.
-       scrush. cbn.
-       omega.
+Proof. unfold IsExit, IsSucc; sauto.
+	Reconstr.hobvious (@H0)
+		(@Coq.ZArith.BinInt.Z.lt_0_1, @Coq.ZArith.BinInt.Z.le_refl, @Coq.ZArith.Znat.Z2Nat.inj_0)
+		Reconstr.Empty.
+	Reconstr.hcrush (@H2, @H1, @H4)
+		(@Coq.ZArith.Zcompare.Zcompare_Gt_not_Lt, @Coq.ZArith.BinInt.Z.compare_eq_iff, 
+     @Coq.ZArith.BinInt.Z.compare_lt_iff, @Coq.ZArith.BinInt.Z.compare_eq,
+     @Coq.ZArith.BinInt.Z.lt_eq_cases, @Coq.ZArith.BinInt.Z.add_0_r, 
+     @Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.Zcompare.Zcompare_Gt_Lt_antisym)
+		Reconstr.Empty.
 Qed.
 
 Lemma exits_single: forall x s, IsExit [x] s <-> List.In s (isuccs x 0) /\ s <> 0.
@@ -372,13 +382,10 @@ Proof.
 Qed.
 
 Lemma exits_empty: forall s, IsExit [] s <-> List.In s [].
-Proof. split; intros. unfold IsExit in H.
-       destruct H. cbn in *. destruct H, H, H1. cbn in *.
-       contradict H. omega.
-       unfold IsExit. split. unfold IsSucc.
-       exists 0. split. easy. split. easy. cbn. left.
-       unfold In in *. easy.
-       cbn in *. easy.
+Proof.
+	Reconstr.hobvious Reconstr.Empty
+		(@BP_term_succs.succs_empty, @Coq.Lists.List.in_nil)
+		(@IsExit).
 Qed.
 
 Lemma exits_simps: forall v x i s,
@@ -708,96 +715,104 @@ Lemma bcomp_exits:
   forall b f i, 0 <= i -> forall s,
       IsExit (bcomp b f i) s ->
       s = size (bcomp b f i) \/ s <= i + size (bcomp b f i).
-Proof. unfold IsExit; intros;
-       destruct H0; apply bcomp_succs in H0; destruct H0; cbn in *.
-       - left; destruct H0; omega.
-       - right; omega.
-       - omega.
+Proof.  unfold IsExit; intros; unfold size in *;
+       destruct H0; apply bcomp_succs in H0; destruct H0; cbn in *;
+       sauto; unfold size in *;
+	     Reconstr.hobvious (@H3, @H2)
+		      (@Coq.ZArith.BinInt.Z.le_antisymm, @Coq.ZArith.BinInt.Z.lt_ge_cases)
+		      (@Compiler.size).
 Qed.
 
 Lemma bcomp_existsD: 
   forall b f i, 0 <= i -> forall s, exists s',
       IsExit (bcomp b f i) s ->
       s' = size (bcomp b f i) \/ s' <= i + size (bcomp b f i).
-Proof. intros; exists s; apply bcomp_exits; easy. Qed.
+Proof. scrush. Qed.
 
 Lemma size_app: forall l m, size (l ++ m) = size l + size m.
-Proof. unfold size; intros.
-       rewrite app_length.
-       Reconstr.htrivial Reconstr.Empty
-		    (@Coq.ZArith.Znat.Nat2Z.inj_add)
-		    Reconstr.Empty.
+Proof. 	
+    Reconstr.htrivial Reconstr.Empty
+		 (@Compiler.lem_size_app)
+		 Reconstr.Empty.
 Qed.
 
 Lemma ccomp_size: forall c, size (ccomp c) >= 0.
-Proof. intro c; case_eq (ccomp c); intros;
-       unfold size; simpl; easy.
+Proof. 
+	Reconstr.hobvious Reconstr.Empty
+		(@Coq.ZArith.BinInt.Z.ge_le_iff, @Coq.ZArith.Zorder.Zle_0_nat)
+		(@Coq.ZArith.BinInt.Z.ge, @Compiler.size).
 Qed.
 
 Lemma list_size: forall l, size l >= 0.
-Proof. intro l; case_eq l; intros;
-       unfold size; simpl; easy.
+Proof. 
+	Reconstr.hobvious Reconstr.Empty
+		(@Coq.ZArith.Zorder.Zle_0_nat, @Coq.ZArith.BinInt.Z.ge_le_iff, @Coq.ZArith.Zeven.Zquot2_odd_eqn)
+		(@Coq.ZArith.BinInt.Z.ge, @Compiler.size).
 Qed.
 
 Lemma ccomp_succs: 
   forall c i n, 0 <= i -> forall s,
       IsSucc (ccomp c) n s -> n <= s <= n + size (ccomp c).
 Proof. intro c; induction c; intros.
-       - cbn in *; pose (succs_empty n s); easy.
+       - sauto;
+         Reconstr.hobvious (@H3, @H0)
+		      (@Coq.ZArith.BinInt.Z.compare_ge_iff)
+		      Reconstr.Empty.
        - cbn in *. specialize (succs_append (acomp a) [STORE v] n s); intros.
          apply H1 in H0. destruct H0.
-         apply acomp_succs in H0.
-         assert (size (acomp a ++ [STORE v]) = size (acomp a) + 1).
-         unfold size. cbn. rewrite app_length. cbn.
-         rewrite Nat2Z.inj_add. easy.
-         rewrite H2. omega.
+         apply acomp_succs in H0. 
+         assert (size (acomp a ++ [STORE v]) = size (acomp a) + 1) by
+	        Reconstr.hobvious Reconstr.Empty
+		        (@Coq.ZArith.auxiliary.Zegal_left, @Coq.Lists.List.app_nil_l, 
+             @Compiler.lem_size_succ, @Coq.ZArith.BinInt.Z.add_simpl_r, 
+             @Compiler.lem_size_app, @Coq.ZArith.BinInt.Z.one_succ)
+		        (@Coq.ZArith.BinIntDef.Z.sub, @Coq.ZArith.BinIntDef.Z.succ).
+	        Reconstr.hcrush (@H0, @H2)
+		        (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.BinInt.Z.lt_eq_cases, 
+             @Coq.ZArith.BinInt.Z.le_succ_l, @Coq.ZArith.BinInt.Z.add_succ_r)
+		        (@Coq.ZArith.BinInt.Z.le, @Coq.ZArith.BinIntDef.Z.succ, @Coq.ZArith.BinInt.Z.lt).
          unfold IsSucc in *. destruct H0, H0, H2.
-         assert (x = 0). unfold size in H2. cbn in H2. 
+         assert (x = 0).  unfold size in H2. cbn in H2. 
          Reconstr.htrivial (@H0, @H2)
 		      (@Coq.ZArith.BinInt.Z.lt_succ_r, @Coq.ZArith.BinInt.Z.le_antisymm, 
 		       @Coq.ZArith.BinInt.Z.one_succ)
 		       Reconstr.Empty.
-		     rewrite H4 in *. cbn in *.
-		     destruct H3. subst. split.
+		     rewrite H4 in *. cbn in *. 
+		     destruct H3. subst. split. 
          assert (size (acomp a) >= 0) by apply list_size.
-         omega.
+         omega. 
          rewrite size_app. cbn. omega.
 		     easy.
 		   - cbn in *.
 		     specialize (succs_append (ccomp c1) (ccomp c2) n s); intros.
-         apply H1 in H0. destruct H0.
+         apply H1 in H0. destruct H0. 
          specialize (IHc1 i n H s H0).
-         case_eq (ccomp c2); intros; subst.
-         assert (ccomp c1 ++ [] = ccomp c1) by scrush.
-         rewrite H3. easy.
-         cbn in *. unfold size. rewrite app_length. cbn.
+         case_eq (ccomp c2); intros; subst. scrush.
+         unfold size. rewrite app_length. cbn.
          unfold size in IHc1.
          split. omega.
          assert (Z.of_nat (Datatypes.length (ccomp c1) + S (Datatypes.length l)) = 
-         Z.of_nat (Datatypes.length (ccomp c1) + (Datatypes.length l) + 1)).
-         f_equal. omega.
+         Z.of_nat (Datatypes.length (ccomp c1) + (Datatypes.length l) + 1)) by
+	       Reconstr.htrivial Reconstr.Empty
+		        (@Coq.Arith.PeanoNat.Nat.add_1_r, @Coq.Init.Peano.plus_n_Sm)
+		        Reconstr.Empty.
+
          rewrite H3.
          rewrite !Nat2Z.inj_add. omega.
          specialize (IHc2 i (n + size (ccomp c1)) H s H0).
-         rewrite size_app. split. pose acomp_size.
-         destruct IHc2. 
-         specialize (ccomp_size c1); intros.
-         omega. omega.
-       - cbn in *.
-         apply succs_append in H0.
-         destruct H0.
-         apply bcomp_succs in H0.
-         destruct H0.
-         rewrite !size_app. cbn.
-         split. omega.
+         rewrite size_app. split; try omega.
+         pose acomp_size;
+         destruct IHc2;
+         specialize (ccomp_size c1); intros; omega.
+       - cbn in *. apply succs_append in H0. destruct H0.
+         apply bcomp_succs in H0. destruct H0.
+         rewrite !size_app. cbn; split; try omega.
          destruct H0.
          specialize (ccomp_size c1); intros.
          specialize (ccomp_size c2); intros.
          rewrite !Z.add_assoc.
          assert ( Z.pos (Pos.of_succ_nat (Datatypes.length (ccomp c2))) >= 0) by scrush.
-         omega.
-         subst. cbn.
-         split.
+         omega. subst. cbn. split.
          rewrite Z.add_assoc.
          specialize (ccomp_size c1); intros.
          assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0).
@@ -805,10 +820,8 @@ Proof. intro c; induction c; intros.
          rewrite !size_app. unfold size.
          cbn. rewrite !Z.add_assoc. 
          rewrite Zpos_P_of_succ_nat. omega.
-         remember (ccomp_size c1); intros.
-         omega.
-         apply succs_append in H0.
-         destruct H0.
+         remember (ccomp_size c1); intros. omega.
+         apply succs_append in H0. destruct H0.
          specialize (IHc1 i (n + size (bcomp b false (size (ccomp c1) + 1))) H s H0).
          split. destruct IHc1.
          assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0).
@@ -817,83 +830,68 @@ Proof. intro c; induction c; intros.
          rewrite Zpos_P_of_succ_nat. omega.
          apply succs_Cons in H0.
          destruct H0. cbn in *.
-         destruct H0. subst.
-         split.
+         destruct H0. subst. split.
          assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0) by apply list_size.
          assert (size (ccomp c1) >= 0) by apply list_size.
-         assert (size (ccomp c2) >= 0) by apply list_size.
-         omega.
+         assert (size (ccomp c2) >= 0) by apply list_size. omega.
          rewrite !size_app, !Z.add_assoc. cbn.
          rewrite Zpos_P_of_succ_nat.
-         unfold size in *. omega.
-         easy.
+         unfold size in *. omega. easy.
          specialize (IHc2 i (n + size (bcomp b false (size (ccomp c1) + 1)) + size (ccomp c1) + 1) H s H0).
          destruct IHc2. split.
          assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0) by apply list_size.
          assert (size (ccomp c1) >= 0) by apply list_size.
-         assert (size (ccomp c2) >= 0) by apply list_size.
-         omega.
+         assert (size (ccomp c2) >= 0) by apply list_size. omega.
          rewrite !size_app, !Z.add_assoc. cbn.
          rewrite Zpos_P_of_succ_nat.
          unfold size in *. omega.
-       - cbn in *.
-         apply succs_append in H0.
-         destruct H0.
-         apply bcomp_succs in H0.
-         destruct H0.
-         assert (Datatypes.length [JMP (- (size (bcomp b false (size (ccomp c) + 1)) + size (ccomp c) + 1))] = 1%nat).
-         easy.
+       - cbn in *. apply succs_append in H0. destruct H0.
+         apply bcomp_succs in H0.  destruct H0.
+         assert (Datatypes.length [JMP (- (size (bcomp b false (size (ccomp c) + 1)) +
+                 size (ccomp c) + 1))] = 1%nat) by easy.
          split.
-         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
-         omega.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size. omega.
          rewrite !size_app, !Z.add_assoc. cbn.
          assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
-         assert (size (ccomp c) >= 0) by apply list_size.
-         omega.
-         subst.
-         split.
+         assert (size (ccomp c) >= 0) by apply list_size. omega.
+         subst. split.
          assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
-         assert (size (ccomp c) >= 0) by apply list_size.
-         omega.
+         assert (size (ccomp c) >= 0) by apply list_size. omega.
          rewrite !size_app, !Z.add_assoc. cbn. omega.
          unfold size. omega.
-         apply succs_append in H0.
-         destruct H0.
+         apply succs_append in H0. destruct H0.
          specialize (IHc i  (n + size (bcomp b false (size (ccomp c) + 1))) H s H0).
          split.
-         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
-         omega.
+         assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size. omega.
          rewrite !size_app, !Z.add_assoc. cbn. omega.
          unfold IsSucc in H0. destruct H0, H0, H1.
          assert (size [JMP (- (size (bcomp b false (size (ccomp c) + 1)) + size (ccomp c) + 1))] = 1).
          easy. rewrite H3 in H1.
-         assert (x = 0) by omega. subst.
-         cbn in *.
-         destruct H2.
-         split. subst. omega.
+         assert (x = 0) by omega. subst. cbn in *.
+         destruct H2. split. subst. omega.
          rewrite !size_app. cbn. subst. 
          rewrite !Z.add_assoc.
          assert (size (bcomp b false (size (ccomp c) + 1)) >= 0) by apply list_size.
-         assert (size (ccomp c) >= 0) by apply list_size.
-         omega.
-         easy.
+         assert (size (ccomp c) >= 0) by apply list_size. omega. easy.
 Qed.
 
 Lemma ccomp_exits: 
   forall c i, 0 <= i -> forall s,
       IsExit (ccomp c) s ->  s = size (ccomp c).
-Proof. intros. unfold IsExit in H0. 
-       destruct H0. apply (ccomp_succs c i) in H0.
-       cbn in *. 
-       unfold Logic.not in H1.
-       omega. omega.
+Proof. intros; unfold IsExit in H0;
+       destruct H0; apply (ccomp_succs c i) in H0.
+	      Reconstr.hobvious (@H1, @H0)
+		      (@Coq.ZArith.BinInt.Z.le_antisymm, @Coq.ZArith.BinInt.Z.add_0_l,
+           @Coq.ZArith.BinInt.Z.le_gt_cases)
+		      Reconstr.Empty.
+       scrush.
 Qed.
 
 Lemma lem_znth_app_r :
   forall xs ys i x, i >= 0 -> i < size xs -> znth i (xs ++ ys) x = znth i xs x.
 Proof.
   intro xs. induction xs; intros.
-  - cbn in *. omega.
+  - scrush.
   - rewrite lem_nth_append.
 	   Reconstr.hcrush (@H0)
 		  (@Compiler.lem_size_succ, @Coq.Bool.Bool.diff_true_false, @Coq.ZArith.Zbool.Zlt_is_lt_bool)
@@ -916,9 +914,10 @@ Proof. intros. apply lem_exec1I.
        specialize (lem_iexec_shift (znth i c ADD) (size P) i 
                                    (j - (size P)) x0 s' x1 stk'); intros.
        assert (size P + (j - size P) = j) by omega.
-       rewrite H8 in *.
-       now apply H7 in H2.
-       omega. omega.
+	     Reconstr.hcrush (@H8, @H2, @H7)
+		      Reconstr.Empty
+		      Reconstr.Empty.
+       scrush. scrush.
 Qed.
 
 Axiom classic : forall P:Prop, P \/ ~ P.
@@ -934,20 +933,15 @@ forall (n: nat) P c P' (i j: Z) (s s': state * stack),
     n%nat = (k + m)%nat.
 Proof. intros n. induction n; intros; cbn in *.
        - exists s. exists i. exists O. exists O.
-         split. now inversion H1.
+         split. now inversion H1. 
          split. unfold IsExit. split.
          unfold IsSucc. inversion H1. subst.
          destruct H2.
-         assert (size P + i < size P -> False) by omega.
-         omega.
-         assert (size P + i > size P + size c -> False) by omega.
-         omega.
-         inversion H1. subst.
-         destruct H2.
-         assert (size P + i < size P -> False) by omega.
-         omega.
-         assert (size P + i > size P + size c -> False) by omega.
-         omega.
+         assert (size P + i < size P -> False) by omega. omega.
+         assert (size P + i > size P + size c -> False) by omega. omega.
+         inversion H1. subst. destruct H2.
+         assert (size P + i < size P -> False) by omega. omega.
+         assert (size P + i > size P + size c -> False) by omega. omega.
          split; easy.
        - destruct H1, H1, x, p.
          pose proof H1 as H1a.
@@ -963,10 +957,8 @@ Proof. intros n. induction n; intros; cbn in *.
          destruct IHn, H7, H7, H7, H7, x, H8, H9, s'.
          exists (s2, s3). exists x0. exists (S x1). exists x2.
          split. cbn.
-         exists (z - size P, s1, s0). split. easy.
-         easy.
-         split. easy.
-         split. cbn. easy. omega.
+         exists (z - size P, s1, s0). split. easy.  easy.
+         split. easy. split. cbn. easy. omega.
 
          unfold exec1 in H1. destruct H1, H1, H1, H1, H5.
          apply succs_iexec1 in H5; try omega. cbn in *.
@@ -975,15 +967,20 @@ Proof. intros n. induction n; intros; cbn in *.
          
 
          exists (s1, s0). exists (z - size P). exists 1%nat. exists n.
+
          split. cbn. inversion H1.
          apply exec1_split in H1a; try easy.
          exists ((z - size P, s1, s0)). split.
          inversion H1. subst. easy. easy.
          split. easy.
          split.
-         assert (size P + (z - size P) = z) by omega.
-         rewrite H8. cbn. easy. omega.
+         assert (size P + (z - size P) = z) by
+	       Reconstr.htrivial Reconstr.Empty
+		        (@Coq.ZArith.BinInt.Zplus_minus)
+		        Reconstr.Empty; scrush.
+         scrush.
 Qed.
+
 
 Definition ascii_eqb (a b: Ascii.ascii) :=
   match a, b with
@@ -999,10 +996,11 @@ Definition ascii_eqb (a b: Ascii.ascii) :=
   end.
 
 Lemma ascii_eqb_refl: forall a, ascii_eqb a a = true.
-Proof. intros.
-       induction a; intros.
-       simpl.
-       now repeat rewrite eqb_reflx.
+Proof. 
+       induction a; sauto;
+	     Reconstr.hsimple Reconstr.Empty
+		      (@Coq.Bool.Bool.eqb_reflx)
+		      (@Coq.Init.Datatypes.andb).
 Qed.
 
 Fixpoint string_eqb (x y: string) :=
@@ -1046,21 +1044,13 @@ Lemma exec_n_drop_right:
    exec_n (c ++ P') (i', fst s'', snd s'') m (j, fst s', snd s') /\
    n%nat = (k  + m)%nat.
 Proof. intros. case_eq c; intros.
-       exists s. exists 0. exists O. exists O.
-       split; easy.
+       exists s. exists 0. exists O. exists O. scrush.
        specialize (exec_n_split n [] c P' 0); intros.
        cbn in *. subst.
-       specialize (H2 j s s').
-       cbn in *.
+       specialize (H2 j s s').  cbn in *. 
        assert (0 <= 0) by omega.
        assert (0 < Z.pos (Pos.of_succ_nat (Datatypes.length l))) by scrush.
-       specialize (H2 H1 H3 H H0).
-       destruct H2 as ((s1, stk1), H2).
-       destruct H2 as (i', H2).
-       destruct H2 as (k, H2).
-       destruct H2 as (m, H2). cbn in *.
-       exists (s1, stk1). exists i'. exists k. exists m.
-       split. easy. split. easy. easy.
+       specialize (H2 H1 H3 H H0); scrush.
 Qed.
 
 Lemma exec1_drop_left:
@@ -1071,16 +1061,23 @@ Lemma exec1_drop_left:
 Proof. intros.
        specialize (exec1_split (i - size P1) n P1 P2 []); intros.
        apply H1. assert (P1 ++ P2 ++ [] = P1 ++ P2) by scrush.
-       rewrite H2.
-       assert (size P1 + (i - size P1) = i) by omega.
-       rewrite H3. easy.
-       omega.
+	     Reconstr.hobvious (@H, @H2)
+		      (@Coq.ZArith.BinInt.Zplus_minus)
+		      Reconstr.Empty.
+	     Reconstr.htrivial (@H0)
+		      (@Coq.ZArith.auxiliary.Zle_left)
+		      (@Coq.ZArith.BinIntDef.Z.sub).
        unfold exec1 in H.
        destruct H, H, H, H, H2.
-       inversion H. destruct H3. 
-       rewrite size_app in H4.
-       omega.
+       inversion H.
+	     Reconstr.hcrush (@H3)
+		      (@Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.BinInt.Z.opp_involutive, @Coq.ZArith.BinInt.Z.lt_add_lt_sub_r, @Compiler.lem_size_app)
+		      (@Coq.ZArith.BinIntDef.Z.sub);
+	     Reconstr.hsimple (@H9, @H8, @H4, @H3, @H)
+		      Reconstr.Empty
+		      (@Coq.ZArith.BinInt.Z.lt).
 Qed.
+
 
 Lemma exec_n_drop_left:
    forall k n i P P' s s' stk stk',
@@ -1088,18 +1085,18 @@ Lemma exec_n_drop_left:
    size P <= i -> (forall r, (IsExit P' r) -> r >= 0) ->
    exec_n P' (i - size P, s, stk) k (n - size P, s', stk').
 Proof. intro k. induction k; intros.
-        - cbn in *. now inversion H.
+        - scrush.
         - cbn in *. destruct H, H, x, p.
           eapply exec1_drop_left in H.
-          exists ((z - size P, s1, s0)). split. easy.
+          exists ((z - size P, s1, s0)). split. scrush.
           apply IHk. easy.
-
           unfold exec1 in H.
           destruct H, H, H, H, H3.
           apply succs_iexec1 in H3. cbn in *.
 
           inversion H3. destruct H5, H6.
           cbn in *.
+
           specialize (H1 (z - size P)).
           unfold IsExit in H1.
 	        Reconstr.hexhaustive 1 (@H3, @H1)
@@ -1108,23 +1105,26 @@ Proof. intro k. induction k; intros.
 	        Reconstr.heasy (@H1, @H0, @H4)
 		        Reconstr.Empty
 		        (@Coq.ZArith.BinInt.Z.le, @Coq.ZArith.BinIntDef.Z.sub).
-          omega. omega.
-          intros. apply H1. easy. omega.
+          omega. omega. scrush. scrush.
 Qed.
 
 Definition closed P := forall r, IsExit P r -> r = size P.
 
 Lemma ccomp_closed: forall c, closed (ccomp c).
-Proof. unfold closed; intros;
-        eapply ccomp_exits;
-        destruct H; easy.
+Proof.
+ unfold closed;
+	Reconstr.hobvious Reconstr.Empty
+		(@ccomp_exits)
+		(@IsExit, @IsSucc).
 Qed.
 
 Lemma acomp_closed: forall c, closed (acomp c).
-Proof. unfold closed; intros;
-        eapply acomp_exits;
-        destruct H; easy.
-Qed.  
+Proof. 
+ unfold closed;
+	Reconstr.htrivial Reconstr.Empty
+		(@acomp_exits)
+		Reconstr.Empty.
+Qed.
 
 Lemma exec_n_split_full:
    forall k P P' j s s' stk stk',
@@ -1137,9 +1137,7 @@ Lemma exec_n_split_full:
      exec_n P' (0,s'',stk'') k2 (j - size P, s', stk').
 Proof. intros.
         case_eq P; intros; subst.
-        cbn in *. exists O. exists k. exists s. exists stk.
-        split. now cbn. assert (j - 0 = j) by omega.
-        now rewrite H3.
+        cbn in *. exists O. exists k. exists s. exists stk. scrush.
 
         specialize (exec_n_split k [] (i :: l) P' 0 j (s, stk) (s', stk')); intros.
 
@@ -1273,23 +1271,22 @@ Lemma bcomp_split:
     exec_n (bcomp b f i ++ P') (i', s'', stk'') m (j, s', stk') /\
     n%nat = (k + m)%nat.
 Proof. intros; case_eq (bcomp b f i); intros; rewrite H2 in *;
-       try (exists s; exists stk; exists 0; exists O; exists n; scrush).
-       pose proof H as Ha.
-       specialize (exec_n_drop_right n i j [] (i0 :: l) P' (s, stk) (s', stk')); intros.
-       unfold fst, snd in H3. specialize (H3 H H0).
-       destruct H3, H3, H3, H3, x. cbn in H3.
-       exists s0. exists s1. exists x0. exists x1. exists x2.
-       split. easy. split.
-       destruct H3, H4.
-       rewrite <- H2 in *.
+       try (exists s; exists stk; exists 0; exists O; exists n; scrush);
 
-       unfold IsExit in H4. destruct H4.
-       apply bcomp_succs in H4; try easy.
-       destruct H4.
-       assert (0 > x0 \/ x0 >= size (bcomp b f i)) by omega.
-       destruct H7.
-       omega. omega. right. omega.
-       cbn. easy.
+       pose proof H as Ha;
+       specialize (exec_n_drop_right n i j [] (i0 :: l) P' (s, stk) (s', stk')); intros;
+       unfold fst, snd in H3; specialize (H3 H H0);
+       destruct H3, H3, H3, H3, x; cbn in H3;
+       exists s0; exists s1; exists x0; exists x1; exists x2;
+
+       split; try easy; split; destruct H3, H4;
+       rewrite <- H2 in *;
+       unfold IsExit in H4; destruct H4;
+       apply bcomp_succs in H4; try easy;
+       destruct H4; try(
+	     Reconstr.hobvious (@H6, @H4)
+		      (@Coq.ZArith.Zorder.Zle_lt_or_eq, @Coq.ZArith.BinInt.Z.add_0_l)
+		      Reconstr.Empty; scrush); scrush.
 Qed.
 
 Lemma neq_eqb: forall b1 b2, eqb b1 (negb b2) = eqb (negb b1) b2.
