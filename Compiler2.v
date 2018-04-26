@@ -909,22 +909,23 @@ Qed.
 Lemma exec1_split i j: forall P c P' s s' stk stk',
   exec1 (P ++ c ++ P') (size P + i, s, stk) (j, s', stk') ->
   0 <= i -> i < size c -> exec1 c (i, s, stk) (j - size P, s', stk').
-Proof. intros. apply lem_exec1I.
-       unfold exec1 in *. destruct H, H, H, H, H2.
-       inversion H.
-       subst. assert (i >= 0) by omega.
-       specialize (lem_znth_app P (c ++ P') i ADD H4); intros.
-       rewrite H5 in H2.
+Proof. intros; apply lem_exec1I; try omega;
+       unfold exec1 in *; destruct H, H, H, H, H2;
+       inversion H;
+       subst; assert (i >= 0) by omega;
+       specialize (lem_znth_app P (c ++ P') i ADD H4); intros;
+       rewrite H5 in H2;
        assert (znth i (c ++ P') ADD = znth i c ADD).
-       { now rewrite lem_znth_app_r. }
-       rewrite H6 in H2.
+       { Reconstr.hobvious (@H0, @H1)
+		     (@Compiler.lem_exec1_hlp1)
+		     Reconstr.Empty. }
+       rewrite H6 in H2;
        specialize (lem_iexec_shift (znth i c ADD) (size P) i 
-                                   (j - (size P)) x0 s' x1 stk'); intros.
-       assert (size P + (j - size P) = j) by omega.
+                                   (j - (size P)) x0 s' x1 stk'); intros;
+       assert (size P + (j - size P) = j) by omega;
 	     Reconstr.hcrush (@H8, @H2, @H7)
 		      Reconstr.Empty
 		      Reconstr.Empty.
-       scrush. scrush.
 Qed.
 
 Axiom classic : forall P:Prop, P \/ ~ P.
@@ -938,54 +939,43 @@ forall (n: nat) P c P' (i j: Z) (s s': state * stack),
     exec_n c (i, fst s, snd s) k (i', fst s'', snd s'') /\ IsExit c i' /\
     exec_n (P ++ c ++ P') (size P + i', fst s'', snd s'') m (j, fst s', snd s') /\
     n%nat = (k + m)%nat.
-Proof. intros n. induction n; intros; cbn in *.
-       - exists s. exists i. exists O. exists O.
-         split. now inversion H1. 
-         split. unfold IsExit. split.
-         unfold IsSucc. inversion H1. subst.
-         destruct H2.
-         assert (size P + i < size P -> False) by omega. omega.
-         assert (size P + i > size P + size c -> False) by omega. omega.
-         inversion H1. subst. destruct H2.
-         assert (size P + i < size P -> False) by omega. omega.
-         assert (size P + i > size P + size c -> False) by omega. omega.
-         split; easy.
-       - destruct H1, H1, x, p.
-         pose proof H1 as H1a.
-         pose proof H3 as H3a.
-         apply exec1_split in H1; try easy.
+Proof. intros n; induction n; intros; cbn in *.
+       - exists s; exists i; exists O; exists O;
+         split; try scrush
+         unfold IsSucc; inversion H1;
+         destruct H2;
+         assert (size P + i < size P -> False) by omega; omega.
+       - destruct H1, H1, x, p;
+         pose proof H1 as H1a;
+         pose proof H3 as H3a;
+         apply exec1_split in H1; try easy;
          destruct (classic (0 <= z - size P < size c)).
-         destruct H4.
+         destruct H4;
          specialize (IHn P c P' (z - size P) j (s1, s0) s').
 
-         assert (size P + (z - size P) = z) by omega.
-         rewrite H6 in IHn. unfold fst, snd in IHn.
-         specialize (IHn H4 H5 H3 H2).
-         destruct IHn, H7, H7, H7, H7, x, H8, H9, s'.
-         exists (s2, s3). exists x0. exists (S x1). exists x2.
-         split. cbn.
-         exists (z - size P, s1, s0). split. easy.  easy.
-         split. easy. split. cbn. easy. omega.
+         assert (size P + (z - size P) = z) by omega;
+         rewrite H6 in IHn; unfold fst, snd in IHn;
+         specialize (IHn H4 H5 H3 H2);
+         destruct IHn, H7, H7, H7, H7, x, H8, H9, s';
+         exists (s2, s3); exists x0; exists (S x1); exists x2;
+         split; cbn.
+         exists (z - size P, s1, s0); split; easy.
+         split; scrush.
 
-         unfold exec1 in H1. destruct H1, H1, H1, H1, H5.
-         apply succs_iexec1 in H5; try omega. cbn in *.
-         assert (IsExit c (z - size P)).
+         unfold exec1 in H1; destruct H1, H1, H1, H1, H5;
+         apply succs_iexec1 in H5; try omega; cbn in *;
+         assert (IsExit c (z - size P));
          unfold IsExit. split; easy.
-         
 
-         exists (s1, s0). exists (z - size P). exists 1%nat. exists n.
-
-         split. cbn. inversion H1.
+         exists (s1, s0); exists (z - size P); exists 1%nat; exists n;
+         split; cbn; inversion H1;
          apply exec1_split in H1a; try easy.
-         exists ((z - size P, s1, s0)). split.
-         inversion H1. subst. easy. easy.
-         split. easy.
-         split.
+         exists ((z - size P, s1, s0));
+         inversion H1; scrush.
          assert (size P + (z - size P) = z) by
 	       Reconstr.htrivial Reconstr.Empty
 		        (@Coq.ZArith.BinInt.Zplus_minus)
 		        Reconstr.Empty; scrush.
-         scrush.
 Qed.
 
 
@@ -1051,8 +1041,7 @@ Lemma exec_n_drop_right:
     exec_n (c ++ P') (i', fst s'', snd s'') m (j, fst s', snd s') /\
     n%nat = (k  + m)%nat.
 Proof. intros. case_eq c; intros. sauto.
-        simpl. rewrite <- H1 in *.
-        assert (i :: l ++ P' = c ++ P'). scrush.
+        assert (i :: l ++ P' = c ++ P') by scrush; cbn;
         rewrite H2; clear H2;
         eapply exec_n_split with (P := []) in H; scrush.
 Qed.
@@ -1063,19 +1052,21 @@ Lemma exec1_drop_left:
   size P1 <= i ->
   exec1 P2 (i - size P1, s, stk) (n - size P1, s', stk').
 Proof. intros.
-       specialize (exec1_split (i - size P1) n P1 P2 []); intros.
-       apply H1. assert (P1 ++ P2 ++ [] = P1 ++ P2) by scrush.
+       specialize (exec1_split (i - size P1) n P1 P2 []); intros;
+       apply H1.
+       assert (P1 ++ P2 ++ [] = P1 ++ P2) by scrush.
 	     Reconstr.hobvious (@H, @H2)
 		      (@Coq.ZArith.BinInt.Zplus_minus)
 		      Reconstr.Empty.
 	     Reconstr.htrivial (@H0)
 		      (@Coq.ZArith.auxiliary.Zle_left)
 		      (@Coq.ZArith.BinIntDef.Z.sub).
-       unfold exec1 in H.
-       destruct H, H, H, H, H2.
-       inversion H.
+       unfold exec1 in H;
+       destruct H, H, H, H, H2;
+       inversion H;
 	     Reconstr.hcrush (@H3)
-		      (@Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.BinInt.Z.opp_involutive, @Coq.ZArith.BinInt.Z.lt_add_lt_sub_r, @Compiler.lem_size_app)
+		      (@Coq.ZArith.BinInt.Z.add_comm, @Coq.ZArith.BinInt.Z.opp_involutive, 
+           @Coq.ZArith.BinInt.Z.lt_add_lt_sub_r, @Compiler.lem_size_app)
 		      (@Coq.ZArith.BinIntDef.Z.sub);
 	     Reconstr.hsimple (@H9, @H8, @H4, @H3, @H)
 		      Reconstr.Empty
@@ -1090,26 +1081,23 @@ Lemma exec_n_drop_left:
    exec_n P' (i - size P, s, stk) k (n - size P, s', stk').
 Proof. intro k. induction k; intros.
         - scrush.
-        - cbn in *. destruct H, H, x, p.
-          eapply exec1_drop_left in H.
-          exists ((z - size P, s1, s0)). split. scrush.
-          apply IHk. easy.
-          unfold exec1 in H.
-          destruct H, H, H, H, H3.
-          apply succs_iexec1 in H3. cbn in *.
-
-          inversion H3. destruct H5, H6.
-          cbn in *.
-
-          specialize (H1 (z - size P)).
-          unfold IsExit in H1.
+        - cbn in *; destruct H, H, x, p;
+          eapply exec1_drop_left in H; try easy;
+          exists ((z - size P, s1, s0)); split; [ scrush | ];
+          apply IHk; try easy;
+          unfold exec1 in H;
+          destruct H, H, H, H, H3;
+          apply succs_iexec1 in H3; try omega;
+          inversion H3; destruct H5, H6;
+          cbn in *;
+          specialize (H1 (z - size P));
+          unfold IsExit in H1;
 	        Reconstr.hexhaustive 1 (@H3, @H1)
 		        (@Coq.ZArith.BinInt.Z.le_0_sub, @Coq.ZArith.BinInt.Z.ge_le_iff)
 		        (@Coq.ZArith.BinInt.Z.ge);
 	        Reconstr.heasy (@H1, @H0, @H4)
 		        Reconstr.Empty
 		        (@Coq.ZArith.BinInt.Z.le, @Coq.ZArith.BinIntDef.Z.sub).
-          omega. omega. scrush. scrush.
 Qed.
 
 Definition closed P := forall r, IsExit P r -> r = size P.
@@ -1171,9 +1159,9 @@ Proof. intros.
 Qed.
 
 Lemma acomp_neq_Nil: forall a, acomp a <> [].
-Proof. induction a; sauto.
-       assert (forall l, l ++ [ADD] <> []). scrush.
-       assert (forall l m, l ++ m ++ [ADD] <> []). scrush.
+Proof. induction a; sauto;
+       assert (forall l, l ++ [ADD] <> []) by scrush;
+       assert (forall l m, l ++ m ++ [ADD] <> []) by scrush;
        scrush.
 Qed.
 
@@ -1279,8 +1267,7 @@ Proof. intros; case_eq (bcomp b f i); intros; rewrite H2 in *;
         try (exists s; exists stk; exists 0; exists O; exists n; scrush);
 
         pose proof H as Ha;
-        specialize (exec_n_drop_right n j (i0 :: l) P' (s, stk) (s', 
-stk')); intros;
+        specialize (exec_n_drop_right n j (i0 :: l) P' (s, stk) (s', stk')); intros;
         unfold fst, snd in H3; specialize (H3 H H0);
         destruct H3, H3, H3, H3, x; cbn in H3;
 
