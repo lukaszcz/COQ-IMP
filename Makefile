@@ -1,5 +1,5 @@
 
-all: imports.vo AExp.vo BExp.vo ASM.vo Star.vo Com.vo Big_Step.vo Hoare.vo Hoare_Examples.vo Hoare_Total.vo Small_Step.vo Compiler.vo Compiler2.vo
+all: imports.vo AExp.vo BExp.vo ASM.vo Star.vo Com.vo Big_Step.vo Hoare.vo Small_Step.vo Compiler.vo Compiler2.vo
 
 imports.vo : imports.v
 	coqc imports.v
@@ -33,12 +33,5 @@ Compiler2.vo : Compiler2.v Compiler.vo Big_Step.vo Star.vo Com.vo
 
 Hoare.vo : Hoare.v Big_Step.vo Com.vo AExp.vo
 	coqc Hoare.v
-
-Hoare_Examples.vo : Hoare_Examples.v Hoare.vo Big_Step.vo Com.vo AExp.vo
-	coqc Hoare_Examples.v
-
-Hoare_Total.vo : Hoare_Total.v Hoare.vo Big_Step.vo Com.vo AExp.vo
-	coqc Hoare_Total.v
-
 clean:
 	-rm -f *.vo *.glob .*.aux

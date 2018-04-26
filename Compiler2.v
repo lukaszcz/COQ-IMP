@@ -1877,7 +1877,10 @@ Proof. intro c.
             
             assert (size (ccomp c1) >= 0) by apply list_size.
             omega.
-         - admit. (** case while *)
+         -  (* revert n b c IHc s t stk stk' H.*) 
+            induction n; intros.
+            + admit.
+            + admit. (** case while *)
 Admitted.
 
 Theorem ccomp_exec: forall c s t stk stk',
