@@ -736,6 +736,13 @@ Proof.
 		 Reconstr.Empty.
 Qed.
 
+Lemma size_cons: forall x m, size (x :: m) = 1 + size m.
+Proof.
+	Reconstr.htrivial Reconstr.Empty
+		(@Coq.ZArith.BinInt.Z.one_succ, @Coq.ZArith.BinInt.Z.add_comm, @Compiler.lem_size_succ)
+		Reconstr.Empty.
+Qed.
+
 Lemma ccomp_size: forall c, size (ccomp c) >= 0.
 Proof. 
 	Reconstr.hobvious Reconstr.Empty
@@ -876,14 +883,14 @@ Proof. intro c; induction c; intros.
 Qed.
 
 Lemma ccomp_exits: 
-  forall c i, 0 <= i -> forall s,
+  forall c s,
       IsExit (ccomp c) s ->  s = size (ccomp c).
-Proof. intros; unfold IsExit in H0;
-       destruct H0; apply (ccomp_succs c i) in H0.
-	      Reconstr.hobvious (@H1, @H0)
-		      (@Coq.ZArith.BinInt.Z.le_antisymm, @Coq.ZArith.BinInt.Z.add_0_l,
-           @Coq.ZArith.BinInt.Z.le_gt_cases)
-		      Reconstr.Empty.
+Proof. intros; unfold IsExit in H;
+       destruct H; apply (ccomp_succs c 0) in H;
+	     Reconstr.hsimple (@H, @H0)
+		    (@Coq.ZArith.BinInt.Z.max_l, @Coq.ZArith.BinInt.Z.max_r, 
+		     @Coq.ZArith.BinInt.Z.lt_ge_cases, @Coq.ZArith.BinInt.Z.add_0_l)
+		   Reconstr.Empty;
        scrush.
 Qed.
 
@@ -1033,7 +1040,7 @@ Fixpoint list_instr_eqb l m :=
   end.
 
 Lemma exec_n_drop_right:
-   forall (n: nat) (i j: Z) (c P': list instr) s s',
+   forall (n: nat) (j: Z) (c P': list instr) s s',
    exec_n (c ++ P') (0, fst s, snd s) n (j, fst s', snd s') ->
    (j < 0 \/ j >= size c) ->
    exists s'', exists i', exists k, exists m,
@@ -1045,7 +1052,7 @@ Lemma exec_n_drop_right:
     n%nat = (k  + m)%nat.
 Proof. intros. case_eq c; intros. sauto.
         simpl. rewrite <- H1 in *.
-        assert (i0 :: l ++ P' = c ++ P'). scrush.
+        assert (i :: l ++ P' = c ++ P'). scrush.
         rewrite H2; clear H2;
         eapply exec_n_split with (P := []) in H; scrush.
 Qed.
@@ -1272,7 +1279,7 @@ Proof. intros; case_eq (bcomp b f i); intros; rewrite H2 in *;
         try (exists s; exists stk; exists 0; exists O; exists n; scrush);
 
         pose proof H as Ha;
-        specialize (exec_n_drop_right n i j (i0 :: l) P' (s, stk) (s', 
+        specialize (exec_n_drop_right n j (i0 :: l) P' (s, stk) (s', 
 stk')); intros;
         unfold fst, snd in H3; specialize (H3 H H0);
         destruct H3, H3, H3, H3, x; cbn in H3;
@@ -1696,8 +1703,181 @@ Proof. intro c.
              destruct H1.
              eapply ccomp_succs in H0; try easy.
              assert (size (ccomp c2) >= 0) by apply list_size. omega.
-           - split. cbn in *. apply bcomp_split in H.
+           - cbn in *. apply bcomp_split in H.
              destruct H as (s'',(stk'',(i',(k,(m, (cs2,(cs3,(cs1, H)))))))).
+             
+             pose proof cs2 as cs2a.
+             apply bcomp_exec_n in cs2a.
+             destruct cs2a as (HHi', HH).
+             
+             pose proof cs1 as cs1a.
+             apply exec_n_drop_left in cs1a.
+             cbn in *. rewrite HHi' in cs1a.
+             assert (size (bcomp b false (size (ccomp c1) + 1)) +
+                    (if eqb (bval s b) false then size (ccomp c1) + 1 else 0) -
+                    size (bcomp b false (size (ccomp c1) + 1)) =
+                    (if eqb (bval s b) false then size (ccomp c1) + 1 else 0))
+                    by omega.
+            rewrite H0 in *; clear H0.
+            rewrite !size_app in *.
+            assert (size (bcomp b false (size (ccomp c1) + 1)) + 
+                    (size (ccomp c1) + size (JMP (size (ccomp c2)) :: ccomp c2)) -
+                    size (bcomp b false (size (ccomp c1) + 1)) =
+                    (size (ccomp c1) + size (JMP (size (ccomp c2)) :: ccomp c2)))
+                    by omega.
+            rewrite H0 in *; clear H0.
+            assert ((if eqb (bval s b) false then (size (ccomp c1) + 1)%Z else 0%Z) =
+                    (if bval s b then 0 else (size (ccomp c1) + 1))%Z) by scrush.
+            rewrite H0 in *.
+            destruct HH as (HH1, HH2); rewrite HH1, HH2 in *.
+            assert (size (ccomp c1) + size (JMP (size (ccomp c2)) :: ccomp c2) =
+                   1 + size (ccomp c1) + size (ccomp c2)).
+            {
+              assert (size (JMP (size (ccomp c2)) :: ccomp c2) = 
+                      1 + size (ccomp c2)) by apply size_cons.
+              rewrite H1. omega.
+            }
+            rewrite H1 in *; clear H1.
+            
+            (** case (bval s b) *)
+            case_eq (bval s b); intros; rewrite H1 in *.
+            pose proof cs1a as cs11a.
+           
+            specialize (exec_n_drop_right m
+            (1 + size (ccomp c1) + size (ccomp c2))
+            (ccomp c1) (JMP (size (ccomp c2)) :: ccomp c2)
+            (s, stk) (t, stk') cs11a); intros.
+            assert (1 + size (ccomp c1) + size (ccomp c2) < 0 \/ 
+            1 + size (ccomp c1) + size (ccomp c2) >= size (ccomp c1)).
+            right.            
+            assert (size (ccomp c2) >= 0) by apply list_size.
+            assert (size (ccomp c1) >= 0) by apply list_size.
+            omega.
+            specialize (H2 H3); clear H3.
+            destruct H2 as ((s0, stk0), (i'0, (k0, (m0, (HHd1, HHd2))))).
+            destruct HHd2 as (HHd2, HHd3).
+            assert (fst (s, stk) = s) by easy.
+            assert (snd (s, stk) = stk) by easy.
+            assert (fst (s0, stk0) = s0) by easy.
+            assert (snd (s0, stk0) = stk0) by easy.
+            assert (fst (t, stk') = t) by easy.
+            assert (snd (t, stk') = stk') by easy.
+            rewrite H2, H3, H4, H5, H6, H7 in *; clear H2 H3 H4 H5 H6 H7.
+            (** case  (ccomp c1) [] *)
+            case_eq (list_instr_eqb (ccomp c1) []); intros;
+            rewrite H2 in HHd1.
+            
+            (** CASE: list_instr_eqb (ccomp c1) [] = true *)
+            case_eq (ccomp c1); intros. rewrite H3 in *.
+            rewrite app_nil_l in *.
+            
+            apply exec_n_step in HHd2.
+            destruct HHd2, x, p, H4, H5.
+            destruct HHd1, H8. rewrite H8 in *.
+            unfold exec1 in H4.
+            destruct H4, H4, H4, H4, H10.
+            inversion H4. rewrite <- H13 in *. 
+            assert ((znth 0 (JMP (size (ccomp c2)) :: ccomp c2) ADD) = 
+            JMP (size (ccomp c2))) by easy.
+            rewrite H12 in H10. unfold iexec in H10.
+            apply exec_n_end in H5.
+            destruct H5, H16, H17.
+            assert (s = t).  scrush. 
+            assert (stk = stk').  scrush. 
+            split.
+            apply Big_Step.IfTrue. easy. rewrite H19.
+            specialize (IHc1 O t t stk stk'); eapply IHc1. scrush. easy.
+            
+            assert (z = 1 + size (ccomp c2)) by scrush.
+            rewrite H16. now rewrite size_cons.
+            
+            assert ( size [] = 0) by easy.
+            rewrite H5. destruct HHd1, H7.
+            rewrite H7.
+            assert ( size (ccomp c2) >= 0) by apply list_size.
+            omega. rewrite H3 in H2. now cbn in H2.
+            
+            (** CASE: list_instr_eqb (ccomp c1) [] = false *)
+            destruct HHd1 as (HHd1, HHd4).
+            apply ccomp_exits in HHd4.
+            rewrite HHd4 in *.
+            apply exec_n_step in HHd2.
+            destruct HHd2, H3, H4, x, p.
+            apply exec_n_end in H4.
+            unfold exec1 in H3.
+            destruct H3, H3, H3, H3, H6.
+            cbn in H6.
+            inversion H3. rewrite <- H9 in H6.
+            assert (znth (size (ccomp c1)) 
+                   (ccomp c1 ++ JMP (size (ccomp c2)) :: ccomp c2) ADD
+                   =  JMP (size (ccomp c2)) ).
+            rewrite lem_nth_append.
+            assert (size (ccomp c1) <? size (ccomp c1) = false).
+	          Reconstr.hsimple (@H9)
+		          (@Coq.ZArith.BinInt.Z.le_refl, @Coq.ZArith.BinInt.Z.compare_nge_iff)
+		          (@Coq.ZArith.BinIntDef.Z.ltb).
+		        rewrite H8.
+		        assert ((size (ccomp c1) - size (ccomp c1)) = 0) by omega.
+		        rewrite H12. easy.
+            omega.
+            unfold znth, size. cbn.
+            rewrite H8 in *.
+            inversion H6. destruct H4, H12, H16.
+            rewrite H10, H11, <- H14, <- H15, <- H12, <- H16 in *.
+            specialize (IHc1 k0 s t stk stk').
+            split.
+            apply Big_Step.IfTrue. easy.
+            eapply IHc1. easy.
+            specialize (IHc1 HHd1). easy.
+            
+            unfold exec1 in H3.
+            destruct H3, H3, H3, H3, H6.
+            cbn in H6.
+            inversion H3. rewrite <- H9 in H6.
+            assert (znth (size (ccomp c1)) 
+                   (ccomp c1 ++ JMP (size (ccomp c2)) :: ccomp c2) ADD
+                   =  JMP (size (ccomp c2)) ).
+            {
+              rewrite lem_nth_append.
+              assert (size (ccomp c1) <? size (ccomp c1) = false).
+	            Reconstr.hsimple (@H9)
+		            (@Coq.ZArith.BinInt.Z.le_refl, @Coq.ZArith.BinInt.Z.compare_nge_iff)
+		            (@Coq.ZArith.BinIntDef.Z.ltb).
+		          rewrite H8.
+		          assert ((size (ccomp c1) - size (ccomp c1)) = 0) by omega.
+		          rewrite H12. easy. omega.
+            }
+            rewrite H8 in *.
+            inversion H6.
+            rewrite !size_app, size_cons. omega.            
+            assert (size (ccomp c2) >= 0) by apply list_size.
+            assert (size (ccomp c1) >= 0) by apply list_size.
+            omega.
+            
+            admit. (** case (bval s b) = false *)
+          
+            destruct cs3. omega.
+            assert (size (ccomp c1) >= 0) by apply list_size. omega.
+            (** forall r : Z, IsExit 
+            (ccomp c1 ++ JMP (size (ccomp c2)) :: ccomp c2) r -> r >= 0 *)
+            admit.
+            
+            destruct cs3. omega.
+            assert (size (ccomp c1) >= 0) by apply list_size. omega.
+            
+            assert (size (ccomp c1) >= 0) by apply list_size. omega.
+            
+            right. rewrite !size_app.
+            assert (size (bcomp b false (size (ccomp c1) + 1)) >= 0) 
+            by apply list_size.
+            assert (size (JMP (size (ccomp c2)) :: ccomp c2) >= 0)
+            by apply list_size.
+            assert (size (ccomp c1) >= 0) by apply list_size.
+            omega.
+            
+            assert (size (ccomp c1) >= 0) by apply list_size.
+            omega.
+         - admit. (** case while *)
 Admitted.
 
 Theorem ccomp_exec: forall c s t stk stk',
