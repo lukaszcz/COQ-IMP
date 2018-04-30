@@ -928,8 +928,6 @@ Proof. intros; apply lem_exec1I; try omega;
 		      Reconstr.Empty.
 Qed.
 
-Axiom classic : forall P:Prop, P \/ ~ P.
-
 Lemma exec_n_split: 
 forall (n: nat) P c P' (i j: Z) (s s': state * stack),
   0 <= i -> i < size c ->
@@ -948,8 +946,9 @@ Proof. intros n; induction n; intros; cbn in *.
        - destruct H1, H1, x, p;
          pose proof H1 as H1a;
          pose proof H3 as H3a;
-         apply exec1_split in H1; try easy;
-         destruct (classic (0 <= z - size P < size c)).
+         apply exec1_split in H1; try easy.
+         assert (HH: (0 <= z - size P < size c) \/ ~(0 <= z - size P < size c)) by omega.
+         destruct HH.
          destruct H4;
          specialize (IHn P c P' (z - size P) j (s1, s0) s').
 
