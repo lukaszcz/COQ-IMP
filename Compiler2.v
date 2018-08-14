@@ -489,7 +489,6 @@ Proof.
           (unfold size in *; simpl in *; omega).
       rewrite HH in *; clear HH.
       sauto.
-      omega.
   - repeat rewrite lem_size_app in *.
     assert (forall l, 0 <= size l) by
         Reconstr.hobvious Reconstr.Empty

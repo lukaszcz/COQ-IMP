@@ -110,7 +110,6 @@ Proof.
                   (@Coq.ZArith.BinInt.Z.ltb_ge)
                   Reconstr.Empty.
     + scrush.
-    + scrush.
   - intros.
     assert (HH: i = 0 \/ exists i', i = i' + 1 /\ 0 <= i') by
         Reconstr.hcrush Reconstr.AllHyps
@@ -523,8 +522,8 @@ Proof.
         exec_append_tac.
     scrush.
   - assert_exec_bcomp_tac.
-    repeat rewrite lem_size_app; sauto; fold n.
-    apply lem_exec_appendR; scrush.
+    repeat rewrite lem_size_app; sauto;
+    apply lem_exec_appendR; unfold n in H0; scrush.
   - assert_exec_bcomp_tac.
     assert (exec (ccomp c0) (0, s, stk) (size (ccomp c0), s2, stk)) by scrush.
     assert (HH1: exec (ccomp (While b c0)) (0, s2, stk) (size (ccomp (While b c0)), s3, stk)) by scrush.
