@@ -34,7 +34,7 @@ Fixpoint asimp_const (e : aexpr) :=
 
 Lemma lem_aval_asimp_const : forall s e, aval s (asimp_const e) = aval s e.
 Proof.
-  induction e; sauto.
+  induction e; hauto q: on.
 Qed.
 
 Fixpoint plus (e1 e2 : aexpr) :=
@@ -58,8 +58,5 @@ Fixpoint asimp (e : aexpr) :=
 
 Lemma lem_aval_asimp : forall s e, aval s (asimp e) = aval s e.
 Proof.
-  induction e; sauto.
-  Reconstr.htrivial Reconstr.AllHyps
-                    (@lem_aval_plus)
-                    Reconstr.Empty.
+  induction e; hauto use: lem_aval_plus.
 Qed.
