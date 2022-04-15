@@ -41,7 +41,5 @@ Fixpoint comp (a : aexpr) : list instr :=
 
 Lemma lem_exec_comp : forall a s stk, exec (comp a) s stk = aval s a :: stk.
 Proof.
-  induction a; sauto.
-  (* CoqHammer 1.0.7 can't solve the subgoal *)
-  repeat rewrite lem_exec_append; scrush.
+  induction a; hauto q: on use: lem_exec_append.
 Qed.

@@ -51,11 +51,10 @@ Qed.
 
 Lemma lem_triv_if : forall b c, If b c c ~~ c.
 Proof.
-  unfold equiv_com; sauto.
-  - scrush.
-  - destruct (bval s b) eqn:?.
-    + eauto using IfTrue.
-    + eauto using IfFalse.
+  unfold equiv_com; try sauto.
+  - intros. destruct (bval s b) eqn:?.
+    + sauto lq: on rew: off.
+    + sauto lq: on rew: off.
 Qed.
 
 
@@ -76,13 +75,9 @@ Proof.
   assert (forall p s', p ==> s' -> forall b c c' s,
               p = (While b c, s) -> c ~~ c' -> (While b c', s) ==> s'); [idtac | scrush].
   intros p s' H.
-  induction H; sauto.
-  - Reconstr.hobvious Reconstr.AllHyps
-		      (@WhileFalse)
-		      Reconstr.Empty.
-  - Reconstr.hsimple (@IHbig_step2, @H0, @H3, @H)
-		(@WhileTrue)
-		(@equiv_com).
+  induction H; try scongruence.
+  - sauto lq: on.
+  - hauto lq: on use: WhileTrue unfold: equiv_com.
 Qed.
 
 Lemma lem_while_cong : forall b c c', c ~~ c' -> While b c ~~ While b c'.
@@ -112,7 +107,5 @@ Lemma lem_big_step_deterministic :
 Proof.
   intros c s s1 s2 H.
   revert s2.
-  induction H; try yelles 1.
-  - scrush.
-  - intros s0 H2; inversion H2; scrush.
+  induction H; try sauto.
 Qed.

@@ -37,8 +37,6 @@ Proof.
                                                (Seq c1 c2, s) -->* (Seq c1' c2, s')); [idtac|scrush].
   intros p1 p2 H.
   induction H; sauto.
-  destruct y; sauto.
-  pose @star_step; pose SeqSemS2; scrush.
 Qed.
 
 Lemma lem_seq_comp : forall c1 c2 s1 s2 s3, (c1, s1) -->* (Skip, s2) -> (c2, s2) -->* (Skip, s3) ->
@@ -46,10 +44,10 @@ Lemma lem_seq_comp : forall c1 c2 s1 s2 s3, (c1, s1) -->* (Skip, s2) -> (c2, s2)
 Proof.
   intros c1 c2 s1 s2 s3 H1 H2.
   assert ((Seq c1 c2, s1) -->* (Seq Skip c2, s2)).
-  pose lem_star_seq2; scrush.
-  assert ((Seq Skip c2, s2) -->* (c2, s2)).
-  pose @star_step; scrush.
-  pose @lem_star_trans; scrush.
+  pose proof lem_star_seq2.
+  srun eauto.
+  assert ((Seq Skip c2, s2) -->* (c2, s2)) by (sauto lq: on).
+  pose proof @lem_star_trans; sauto lq: on.
 Qed.
 
 Lemma lem_big_to_small : forall p s', p ==> s' -> p -->* (Skip, s').
@@ -66,36 +64,29 @@ Proof.
     Reconstr.hobvious Reconstr.AllHyps
 		      (@lem_star_seq2)
 		      Reconstr.Empty.
-    pose @lem_star_trans; pose @star_step; pose SeqSemS1; scrush.
+    eapply (lem_star_trans) with (y := (Seq c (While b c), s1)).
+    auto.
+    strivial use: lem_seq_comp.
 Qed.
 
 Lemma lem_small1_big_continue : forall p p', p --> p' -> forall s, p' ==> s -> p ==> s.
 Proof.
   intros p p' H.
-  induction H; try yelles 1.
-  - sauto; Reconstr.hobvious Reconstr.AllHyps
-		             (@Big_Step.SeqSem)
-		             Reconstr.Empty.
-  - Reconstr.htrivial Reconstr.Empty
-		      (@Big_Step.lem_while_unfold, @Big_Step.SkipSem)
-		      (@Big_Step.equiv_com).
+  induction H; sauto lq:on.
 Qed.
 
 Lemma lem_small_to_big : forall p s, p -->* (Skip, s) -> p ==> s.
 Proof.
   assert (forall p p', p -->* p' -> forall s, p' = (Skip, s) -> p ==> s); [idtac|scrush].
   intros p p' H.
-  induction H; sauto.
-  Reconstr.hsimple Reconstr.AllHyps
-		   (@lem_small1_big_continue)
-		   Reconstr.Empty.
+  induction H.
+  - hauto l:on.
+  - srun sauto use: SeqSemS1, lem_small1_big_continue, SkipSem.
 Qed.
 
 Corollary cor_big_iff_small : forall p s, p ==> s <-> p -->* (Skip, s).
 Proof.
-  Reconstr.htrivial Reconstr.Empty
-		    (@lem_small_to_big, @lem_big_to_small)
-		    Reconstr.Empty.
+  srun sauto use: lem_small_to_big, lem_big_to_small.
 Qed.
 
 (* Final configurations and infinite reductions *)
@@ -105,14 +96,18 @@ Definition final (cs : com * state) := ~(exists cs', cs --> cs').
 Lemma lem_nonfinal_dec_0 :
   forall c s, (exists cs', (c, s) --> cs') \/ (~(exists cs', (c, s) --> cs') /\ c = Skip).
 Proof.
-  induction c; sauto.
-  - pose @SeqSemS2; scrush.
-  - destruct (bval s b) eqn:?; pose @IfTrueS; pose @IfFalseS; scrush.
+  induction c.
+  - sauto lq:on.
+  - sauto lq:on.
+  - ecrush.
+  - intros s. destruct (bval s b) eqn:?; pose @IfTrueS; pose @IfFalseS; sauto lq: on rew: off.
+  - sauto lq:on.
 Qed.
 
 Lemma lem_nonfinal_dec : forall cs, (exists cs', cs --> cs') \/ ~(exists cs', cs --> cs').
 Proof.
-  pose lem_nonfinal_dec_0; scrush.
+  pose proof lem_nonfinal_dec_0.
+  hauto lq:on.
 Qed.
 
 Lemma lem_finalD : forall c s, final (c, s) -> c = Skip.
@@ -125,15 +120,16 @@ Qed.
 Lemma lem_final_iff_SKIP : forall c s, final (c, s) <-> c = Skip.
 Proof.
   split.
-  - pose lem_finalD; scrush.
-  - unfold final; scrush.
+  - pose proof lem_finalD; hauto l: on.
+  - intros H; subst.
+    sauto lq:on unfold: final.
 Qed.
 
 Lemma lem_big_iff_small_termination :
   forall cs, (exists s, cs ==> s) <-> (exists cs', cs -->* cs' /\ final cs').
 Proof.
   split.
-  - pose cor_big_iff_small; pose lem_final_iff_SKIP; scrush.
+  - pose proof cor_big_iff_small; pose proof lem_final_iff_SKIP; hauto l: on.
   - intro H; destruct H as [cs']; destruct cs'.
-    pose cor_big_iff_small; pose lem_final_iff_SKIP; scrush.
+    pose proof cor_big_iff_small; pose proof lem_final_iff_SKIP; sauto lq: on rew: off.
 Qed.

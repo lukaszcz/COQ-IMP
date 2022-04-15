@@ -54,14 +54,10 @@ Qed.
 Lemma lem_n_succ_znth :
   forall {A} n (a : A) xs x, 0 <= n -> znth (n + 1) (a :: xs) x = znth n xs x.
 Proof.
-  induction n; sauto.
-  - Reconstr.htrivial Reconstr.AllHyps
-                      (@Coq.PArith.Pnat.Pos2Nat.inj_succ, @Coq.PArith.BinPos.Pos.add_1_r)
-                      Reconstr.Empty.
-  - Reconstr.htrivial Reconstr.AllHyps
-                      (@Coq.PArith.BinPos.Pos.add_1_r, @Coq.PArith.Pnat.Pos2Nat.inj_succ,
-                       @Coq.ZArith.Znat.Z2Nat.inj_pos, @Coq.Init.Peano.eq_add_S)
-                      (@znth).
+  induction n.
+  - hauto lq:on.
+  - hauto lq: on use: list, Pnat.Pos2Nat.inj_succ, PArith.BinPos.Pos.add_1_r unfold: znth.
+  - sfirstorder.
 Qed.
 
 Lemma lem_znth_app :
@@ -90,13 +86,10 @@ Lemma lem_size_succ :
   forall a xs, size (a :: xs) = size xs + 1.
 Proof.
   assert (forall n a xs, n = size xs -> size (a :: xs) = n + 1); [idtac | scrush].
-  induction n; sauto.
-  - scrush.
-  - Reconstr.htrivial Reconstr.AllHyps
-                      (@Coq.PArith.BinPos.Pplus_one_succ_r, @Coq.ZArith.Znat.Zpos_P_of_succ_nat,
-                       @Coq.ZArith.BinInt.Pos2Z.inj_succ)
-                      (@Coq.ZArith.BinIntDef.Z.succ, @size).
-  - scrush.
+  induction n.
+  - sauto.
+  - sfirstorder unfold: size.
+  - sauto q: on.
 Qed.
 
 Lemma lem_nth_append :
@@ -105,11 +98,7 @@ Lemma lem_nth_append :
                     (if i <? size xs then znth i xs x else znth (i - size xs) ys x).
 Proof.
   induction xs.
-  - sauto.
-    + Reconstr.hcrush Reconstr.AllHyps
-                  (@Coq.ZArith.BinInt.Z.ltb_ge)
-                  Reconstr.Empty.
-    + scrush.
+  - hauto use: app_nil_l, Z.le_ngt, Z.sub_0_r unfold: negb, BinIntDef.Z.of_nat, length, Z.lt, BinIntDef.Z.ltb, size inv: bool.
   - intros.
     assert (HH: i = 0 \/ exists i', i = i' + 1 /\ 0 <= i') by
         Reconstr.hcrush Reconstr.AllHyps
@@ -117,26 +106,22 @@ Proof.
                          @Coq.ZArith.BinInt.Z.succ_pred)
                         (@Coq.ZArith.BinIntDef.Z.succ).
     destruct HH as [ ? | HH ].
-    scrush.
+    sfirstorder.
     destruct HH as [ i' HH ].
     destruct HH.
     subst; simpl.
     repeat rewrite lem_n_succ_znth by scrush.
     repeat rewrite lem_size_succ.
-    sauto.
-    + assert ((i' <? size xs) = true).
-      Reconstr.hcrush Reconstr.AllHyps
-                      (@Coq.ZArith.BinInt.Z.le_gt_cases, @Coq.Bool.Bool.diff_true_false,
-                       @Coq.ZArith.BinInt.Z.ltb_ge, @Coq.ZArith.Zbool.Zlt_is_lt_bool,
-                       @Coq.ZArith.BinInt.Z.add_le_mono_r)
-                      (@size).
-      scrush.
-    + assert ((i' <? size xs) = false).
-      Reconstr.heasy Reconstr.AllHyps
-                     (@Coq.ZArith.BinInt.Z.ltb_nlt, @Coq.ZArith.BinInt.Z.add_lt_mono_r)
-                     (@size).
-      assert (i' + 1 - (size xs + 1) = i' - size xs) by auto with zarith.
-      scrush.
+    replace (i' + 1 <? size xs + 1) with (i' <? size xs).
+    replace (i' + 1 - (size xs + 1)) with (i' - size xs) by auto with zarith.
+    hauto l: on.
+    sdestruct (i' <? size xs).
+    symmetry.
+    rewrite Z.ltb_lt.
+    auto with zarith.
+    symmetry.
+    rewrite Z.ltb_ge.
+    auto with zarith.
 Qed.
 
 Lemma lem_size_app : forall xs ys, size (xs ++ ys) = size xs + size ys.
@@ -204,7 +189,8 @@ Proof.
   intros P P' c c' H.
   induction H.
   - scrush.
-  - pose @star_step; pose lem_exec1_appendR; scrush.
+  - pose proof @star_step; pose proof lem_exec1_appendR.
+    sauto lq: on rew: off.
 Qed.
 
 Lemma lem_exec1_appendL :
@@ -246,7 +232,7 @@ Proof.
   - intros; simp_hyps; subst.
     destruct y as [ p stk0 ].
     destruct p as [ i0 s0 ].
-    pose @star_step; pose lem_exec1_appendL; scrush.
+    pose proof @star_step; pose proof lem_exec1_appendL; qauto l: on.
 Qed.
 
 Lemma lem_exec_Cons_1 :
@@ -261,7 +247,8 @@ Proof.
   rewrite HH; clear HH.
   assert (HH: 1 = size (ins :: nil) + 0) by scrush.
   rewrite HH; clear HH.
-  pose lem_exec_appendL; scrush.
+  pose proof lem_exec_appendL.
+  hauto l: on.
 Qed.
 
 Lemma lem_exec_appendL_if :
@@ -276,7 +263,7 @@ Proof.
                         (@Coq.ZArith.BinInt.Zplus_minus)
                         (@k).
   rewrite HH; clear HH.
-  pose lem_exec_appendL; scrush.
+  pose proof lem_exec_appendL; hauto l: on.
 Qed.
 
 Lemma lem_exec_append_trans :
@@ -291,7 +278,7 @@ Proof.
       (apply lem_exec_appendL_if with (j := i''); sauto).
   assert (exec (P ++ P') (0,s,stk) (i',s',stk')) by
       (apply lem_exec_appendR; sauto).
-  pose @lem_star_trans; scrush.
+  pose proof @lem_star_trans; hauto l: on.
 Qed.
 
 Ltac escrush := unfold exec; pose @star_step; pose @star_refl; scrush.
@@ -300,7 +287,7 @@ Ltac exec_tac :=
   match goal with
   | [ |- exec ?A (?i, ?s, ?stk) ?B ] =>
     assert (exec1 A (i, s, stk) B) by
-        (unfold exec1; exists i; exists s; exists stk; sauto);
+        (unfold exec1; exists i; exists s; exists stk; hfcrush);
     escrush
   end.
 
@@ -356,20 +343,27 @@ Fixpoint acomp (a : aexpr) : list instr :=
 Lemma lem_acomp_correct :
   forall a s stk, exec (acomp a) (0, s, stk) (size(acomp a), s, aval s a :: stk).
 Proof.
-  induction a; sauto.
+  induction a; ssimpl.
   - exec_tac.
   - exec_tac.
   - assert (exec (acomp a1 ++ acomp a2) (0,s,stk)
                  (size(acomp a1 ++ acomp a2),s,aval s a2 :: aval s a1 :: stk)) by exec_append_tac.
     assert (exec (ADD :: nil) (0,s,aval s a2 :: aval s a1 :: stk) (1,s,(aval s a1 + aval s a2) :: stk)) by
         exec_tac.
-    assert (forall l, size l - size l = 0) by (intro; omega);
+    assert (forall l, size l - size l = 0).
+    { hauto l: on. }
+    
     assert (HH: exec ((acomp a1 ++ acomp a2) ++ ADD :: nil) (0, s, stk)
-                     (size ((acomp a1 ++ acomp a2) ++ ADD :: nil), s, aval s a1 + aval s a2 :: stk)) by
-        (apply lem_exec_append_trans with
-         (i' := size(acomp a1 ++ acomp a2)) (s' := s) (stk' := aval s a2 :: aval s a1 :: stk) (i'' := 1);
-         solve [ sauto | ycrush | rewrite lem_size_app; scrush ]).
-    clear -HH; scrush.
+                  (size ((acomp a1 ++ acomp a2) ++ ADD :: nil), s, aval s a1 + aval s a2 :: stk)).
+    {
+      apply lem_exec_append_trans with
+        (i' := size(acomp a1 ++ acomp a2)) (s' := s) (stk' := aval s a2 :: aval s a1 :: stk) (i'' := 1).
+      - hauto lq: on.
+      - hecrush.
+      - hauto lq: on.
+      - hauto lq: on use: Zpos_P_of_succ_nat, lem_size_succ, lem_size_app unfold: length, BinPosDef.Pos.of_succ_nat, BinIntDef.Z.succ, size.
+    }
+    hauto q: on use: app_assoc, Z.add_assoc, lem_size_app.
 Qed.
 
 Lemma lem_acomp_append :

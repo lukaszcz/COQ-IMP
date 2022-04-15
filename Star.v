@@ -10,15 +10,10 @@ Lemma lem_star_trans {A} (r : A -> A -> Prop) :
 Proof.
   intros x y z H; revert z.
   induction H; sauto.
-  Reconstr.hobvious Reconstr.AllHyps
-		    (@star_step)
-		    Reconstr.Empty.
 Qed.
 
 Lemma star_step1 {A} (r : A -> A -> Prop) :
   forall x y, r x y -> star r x y.
 Proof.
-  Reconstr.hobvious Reconstr.Empty
-		    (@star_step, @star_refl)
-		    Reconstr.Empty.
+  sfirstorder use: star_step, star_refl.
 Qed.

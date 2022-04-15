@@ -55,22 +55,15 @@ Qed.
 
 Lemma lem_bval_and : forall s e1 e2, bval s (and e1 e2) = bval s e1 && bval s e2.
 Proof.
-  induction e1; sauto.
+  induction e1; hauto lqb: on.
 Qed.
 
 Lemma lem_bval_less : forall s a1 a2, bval s (less a1 a2) = (aval s a1 <? aval s a2).
 Proof.
-  induction a1; sauto.
+  induction a1; sauto lq: on rew: off.
 Qed.
 
 Lemma lem_bval_bsimp : forall s e, bval s (bsimp e) = bval s e.
 Proof.
-  induction e; sauto.
-  Reconstr.htrivial Reconstr.AllHyps
-                    (@lem_bval_not)
-                    Reconstr.Empty.
-  Reconstr.htrivial Reconstr.AllHyps
-                    (@lem_bval_and)
-                    Reconstr.Empty.
-  scrush.
+  induction e; sauto lq: on use: lem_bval_not, lem_bval_and.
 Qed.
